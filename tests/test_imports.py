@@ -228,19 +228,34 @@ class TestSettingsExport:
 class TestDjangoFSMLogShim:
     """Tests for django_fsm_log backwards compatibility shim."""
 
-    def test_state_log_is_alias_to_fsm_transition_log(self):
-        """StateLog should be an alias to FSMTransitionLog."""
-        from django_fsm_log.models import StateLog
-        from django_fsm_rx import FSMTransitionLog
-
-        assert StateLog is FSMTransitionLog
-
-    def test_state_log_uses_django_fsm_rx_app_label(self):
-        """StateLog should use django_fsm_rx app_label (no separate app needed)."""
+    def test_state_log_reads_from_original_table(self):
+        """StateLog should read from the original django_fsm_log_statelog table."""
         from django_fsm_log.models import StateLog
 
-        # StateLog is an alias, so it uses the same app_label as FSMTransitionLog
-        assert StateLog._meta.app_label == "django_fsm_rx"
+        # StateLog uses the original table, preserving existing data
+        assert StateLog._meta.db_table == "django_fsm_log_statelog"
+        assert StateLog._meta.managed is False  # Don't create/alter this table
+
+    def test_state_log_has_original_field_names(self):
+        """StateLog should have the original django-fsm-log field names."""
+        from django_fsm_log.models import StateLog
+
+        # Original field names from django-fsm-log
+        field_names = [f.name for f in StateLog._meta.get_fields()]
+        assert "state" in field_names  # target state
+        assert "transition" in field_names  # transition name
+        assert "source_state" in field_names
+        assert "timestamp" in field_names
+        assert "by" in field_names
+        assert "description" in field_names
+
+    def test_state_log_has_api_compatibility_aliases(self):
+        """StateLog should have property aliases for FSMTransitionLog API."""
+        from django_fsm_log.models import StateLog
+
+        # Check that property aliases exist
+        assert hasattr(StateLog, "target_state")
+        assert hasattr(StateLog, "transition_name")
 
     def test_django_fsm_log_does_not_need_installed_apps(self):
         """django_fsm_log should work without being in INSTALLED_APPS."""
@@ -248,6 +263,6 @@ class TestDjangoFSMLogShim:
         # without django_fsm_log being in INSTALLED_APPS (only django_fsm_rx needed)
         from django_fsm_log.models import StateLog
 
-        # The model should be fully functional
-        assert StateLog._meta.model_name == "fsmtransitionlog"
-        assert StateLog._meta.db_table == "django_fsm_rx_fsmtransitionlog"
+        # The model should be importable and configured
+        assert StateLog._meta.model_name == "statelog"
+        assert StateLog._meta.app_label == "django_fsm_log"

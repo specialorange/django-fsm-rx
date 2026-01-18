@@ -407,9 +407,14 @@ class TestDjangoFSMLogShimBackwardsCompatibility:
     def test_django_fsm_log_models_import_works(self):
         """Imports from django_fsm_log.models should work."""
         from django_fsm_log.models import StateLog
-        from django_fsm_rx import FSMTransitionLog
 
-        assert StateLog is FSMTransitionLog
+        # StateLog reads from the original django_fsm_log_statelog table
+        assert StateLog._meta.db_table == "django_fsm_log_statelog"
+        assert StateLog._meta.managed is False  # Don't alter this table
+
+        # It has property aliases for the new API
+        assert hasattr(StateLog, "target_state")
+        assert hasattr(StateLog, "transition_name")
 
     def test_django_fsm_log_decorators_import_works(self):
         """Imports from django_fsm_log.decorators should work."""

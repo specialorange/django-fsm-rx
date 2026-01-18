@@ -161,7 +161,13 @@ Follow the same steps as "From django-fsm-2" above. Your `from django_fsm import
 
 ## From django-fsm-log
 
-[django-fsm-log](https://github.com/jazzband/django-fsm-log) provides transition logging for django-fsm. django-fsm-rx includes built-in audit logging that replaces django-fsm-log.
+[django-fsm-log](https://github.com/jazzband/django-fsm-log) provides transition logging for django-fsm. django-fsm-rx includes built-in audit logging that can replace django-fsm-log.
+
+### Your Data is Preserved
+
+```{important}
+**Your existing transition logs are safe!** The `StateLog` compatibility shim reads directly from your existing `django_fsm_log_statelog` table. No data migration is required.
+```
 
 ### Step 1: Install django-fsm-rx
 
@@ -182,7 +188,7 @@ INSTALLED_APPS = [
 ]
 ```
 
-```{important}
+```{note}
 You do **NOT** need to add `django_fsm_log` to INSTALLED_APPS. The compatibility shim is built into django-fsm-rx - just add `django_fsm_rx` and your existing `from django_fsm_log.models import StateLog` imports will continue to work automatically.
 ```
 
@@ -192,40 +198,67 @@ You do **NOT** need to add `django_fsm_log` to INSTALLED_APPS. The compatibility
 python manage.py migrate django_fsm_rx
 ```
 
-### Step 4: Update imports
+This creates the new `FSMTransitionLog` table for future transitions. Your existing data in `django_fsm_log_statelog` remains untouched.
 
-Your existing imports will continue to work via the compatibility shim:
+### Step 4: That's it!
+
+Your existing code using `StateLog` will continue to work:
 
 ```python
-# Old (still works via compatibility shim)
+# This still works - reads from your existing django_fsm_log_statelog table
 from django_fsm_log.models import StateLog
 
-# New (recommended)
-from django_fsm_rx import FSMTransitionLog
+# Query your existing logs
+logs = StateLog.objects.filter(content_type__model='order')
+for log in logs:
+    print(f"{log.transition}: {log.source_state} -> {log.state}")
 ```
 
-`StateLog` is an alias to `FSMTransitionLog` - they are the same model.
-
-### Step 5: Migrate existing data (if needed)
-
-If you have existing transition logs in django-fsm-log's `StateLog` table, you can migrate them:
+The `StateLog` model provides property aliases for the new field names:
 
 ```python
-# One-time migration script
-# Note: This assumes you still have the original django-fsm-log installed temporarily
-from django.contrib.contenttypes.models import ContentType
+# Both work:
+log.state          # Original field name
+log.target_state   # Alias matching FSMTransitionLog API
+
+log.transition       # Original field name
+log.transition_name  # Alias matching FSMTransitionLog API
+```
+
+### New Transitions
+
+New transitions are logged to `FSMTransitionLog` (the new table) by default. If you want to query both old and new logs, you can:
+
+```python
+from django_fsm_log.models import StateLog  # Old logs
+from django_fsm_rx import FSMTransitionLog  # New logs
+
+# Query old logs
+old_logs = StateLog.objects.filter(...)
+
+# Query new logs
+new_logs = FSMTransitionLog.objects.filter(...)
+```
+
+### Optional: Migrate Data to New Table
+
+If you want to consolidate all logs into the new `FSMTransitionLog` table, you can optionally migrate the data:
+
+```python
+# One-time migration script (run in Django shell or as a management command)
 from django.db import connection
 
-# Check if old table exists
 with connection.cursor() as cursor:
+    # Check if old table exists and has data
     cursor.execute("""
-        SELECT COUNT(*) FROM information_schema.tables
-        WHERE table_name = 'django_fsm_log_statelog'
+        SELECT COUNT(*) FROM django_fsm_log_statelog
     """)
-    if cursor.fetchone()[0] == 0:
-        print("No old StateLog table found, skipping migration")
+    count = cursor.fetchone()[0]
+
+    if count == 0:
+        print("No data to migrate")
     else:
-        # Migrate data
+        # Migrate data to new table
         cursor.execute("""
             INSERT INTO django_fsm_rx_fsmtransitionlog
                 (content_type_id, object_id, transition_name, source_state, target_state, timestamp, by_id, description)
@@ -233,34 +266,33 @@ with connection.cursor() as cursor:
                 content_type_id,
                 object_id::text,
                 transition,
-                source_state,
+                COALESCE(source_state, ''),
                 state,
                 timestamp,
                 by_id,
                 COALESCE(description, '')
             FROM django_fsm_log_statelog
         """)
-        print(f"Migrated {cursor.rowcount} records")
+        print(f"Migrated {cursor.rowcount} records to FSMTransitionLog")
 ```
 
-Or using Django ORM (if django-fsm-log is still installed):
+After migrating and verifying the data:
 
 ```python
-# If you still have django-fsm-log installed temporarily
-from django_fsm_log.models import StateLog as OldStateLog
+# Verify migration
 from django_fsm_rx import FSMTransitionLog
+print(f"New table has {FSMTransitionLog.objects.count()} records")
+```
 
-for old_log in OldStateLog.objects.all().iterator():
-    FSMTransitionLog.objects.create(
-        content_type=old_log.content_type,
-        object_id=str(old_log.object_id),
-        transition_name=old_log.transition,
-        source_state=old_log.source_state,
-        target_state=old_log.state,
-        timestamp=old_log.timestamp,
-        by=old_log.by,
-        description=getattr(old_log, 'description', ''),
-    )
+```{warning}
+**Do not delete the old table until you have verified the migration.** The old `django_fsm_log_statelog` table contains your historical data. Only delete it after confirming all records were migrated successfully.
+```
+
+To delete the old table after verification (optional):
+
+```sql
+-- Only run after verifying migration!
+DROP TABLE django_fsm_log_statelog;
 ```
 
 ### Field Mapping
@@ -268,7 +300,7 @@ for old_log in OldStateLog.objects.all().iterator():
 | django-fsm-log `StateLog` | django-fsm-rx `FSMTransitionLog` |
 |---------------------------|----------------------------------|
 | `content_type` | `content_type` |
-| `object_id` | `object_id` |
+| `object_id` (PositiveIntegerField) | `object_id` (TextField) |
 | `transition` | `transition_name` |
 | `source_state` | `source_state` |
 | `state` | `target_state` |
@@ -296,9 +328,10 @@ However, with audit logging enabled (default), you may not need these decorators
 
 | Feature | django-fsm-log | django-fsm-rx |
 |---------|----------------|---------------|
-| Model name | `StateLog` | `FSMTransitionLog` (with `StateLog` alias) |
-| App label | `django_fsm_log` | `django_fsm_rx` |
-| Requires INSTALLED_APPS | Yes | No (for shim), Yes (for model) |
+| Model name | `StateLog` | `FSMTransitionLog` (with `StateLog` shim) |
+| Table | `django_fsm_log_statelog` | `django_fsm_rx_fsmtransitionlog` |
+| StateLog shim | N/A | Reads from original table (no migration needed) |
+| Requires INSTALLED_APPS | Yes | No (for shim), Yes (for new model) |
 | Automatic logging | Via signal | Via `AUDIT_LOG` setting (default: True) |
 | Log modes | Signal only | `transaction` (default) or `signal` |
 
