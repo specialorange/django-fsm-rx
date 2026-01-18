@@ -1,5 +1,127 @@
 # Admin Integration
 
+django-fsm-rx includes built-in Django admin integration through `FSMAdminMixin`. This provides transition buttons in the admin change form, allowing staff users to execute FSM transitions directly from the admin interface.
+
+## Basic Setup
+
+```python
+from django.contrib import admin
+from django_fsm_rx.admin import FSMAdminMixin
+from myapp.models import Order
+
+@admin.register(Order)
+class OrderAdmin(FSMAdminMixin, admin.ModelAdmin):
+    list_display = ['id', 'customer', 'state']
+    fsm_fields = ['state']  # List your FSM fields
+```
+
+This renders transition buttons below the form for each available transition.
+
+## Migration from django-fsm-admin
+
+If you're migrating from [django-fsm-admin](https://github.com/gadventures/django-fsm-admin) or [django-fsm-2-admin](https://github.com/coral-li/django-fsm-2-admin), your existing code will work with the compatibility shim:
+
+```python
+# Old (still works via compatibility shim with deprecation warning)
+from django_fsm_admin.mixins import FSMTransitionMixin
+
+# New (recommended)
+from django_fsm_rx.admin import FSMAdminMixin
+```
+
+`FSMTransitionMixin` is aliased to `FSMAdminMixin` for backwards compatibility.
+
+### Key Differences
+
+| Feature | django-fsm-admin | django-fsm-rx |
+|---------|------------------|---------------|
+| Mixin class | `FSMTransitionMixin` | `FSMAdminMixin` (alias available) |
+| Attribute name | `fsm_field` (singular) | `fsm_fields` (list) |
+| Templates | Separate package | Included |
+| Cascade widget | Not included | `FSMCascadeWidget` built-in |
+
+### Import Changes
+
+```python
+# Before (django-fsm-admin)
+from django_fsm_admin.mixins import FSMTransitionMixin
+
+class OrderAdmin(FSMTransitionMixin, admin.ModelAdmin):
+    fsm_field = ['state']  # Note: some versions used singular 'fsm_field'
+
+# After (django-fsm-rx)
+from django_fsm_rx.admin import FSMAdminMixin
+
+class OrderAdmin(FSMAdminMixin, admin.ModelAdmin):
+    fsm_fields = ['state']  # Always use plural 'fsm_fields'
+```
+
+## Custom Transition Labels
+
+Use the `custom` parameter on transitions to customize how they appear in admin:
+
+```python
+from django_fsm_rx import FSMField, transition
+
+class Order(models.Model):
+    state = FSMField(default='pending')
+
+    @transition(
+        field=state,
+        source='pending',
+        target='approved',
+        custom={'label': 'Approve Order', 'admin': True}
+    )
+    def approve(self):
+        pass
+
+    @transition(
+        field=state,
+        source='pending',
+        target='rejected',
+        custom={'label': 'Reject', 'css_class': 'btn-danger'}
+    )
+    def reject(self):
+        pass
+```
+
+### Custom Properties
+
+| Property | Description |
+|----------|-------------|
+| `label` | Display text for the button (default: method name) |
+| `admin` | Show in admin (default: True). Set to False to hide |
+| `css_class` | Additional CSS class for the button |
+| `form` | Django form class for transitions requiring input |
+
+## Transition Forms
+
+For transitions that require additional input:
+
+```python
+from django import forms
+from django_fsm_rx import FSMField, transition
+
+class RejectForm(forms.Form):
+    reason = forms.CharField(widget=forms.Textarea)
+
+class Order(models.Model):
+    state = FSMField(default='pending')
+    rejection_reason = models.TextField(blank=True)
+
+    @transition(
+        field=state,
+        source='pending',
+        target='rejected',
+        custom={'form': RejectForm}
+    )
+    def reject(self, reason=None):
+        if reason:
+            self.rejection_reason = reason
+```
+
+When a form is specified, clicking the transition button shows a modal with the form fields.
+
 ## FSMCascadeWidget
 
 When using hierarchical status codes, the standard dropdown becomes unwieldy with dozens of options. `FSMCascadeWidget` renders cascading dropdowns that filter based on selection.

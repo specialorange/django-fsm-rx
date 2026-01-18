@@ -223,3 +223,31 @@ class TestSettingsExport:
         assert hasattr(fsm_rx_settings, "ATOMIC")
         assert hasattr(fsm_rx_settings, "AUDIT_LOG")
         assert hasattr(fsm_rx_settings, "AUDIT_LOG_MODE")
+
+
+class TestDjangoFSMLogShim:
+    """Tests for django_fsm_log backwards compatibility shim."""
+
+    def test_state_log_is_alias_to_fsm_transition_log(self):
+        """StateLog should be an alias to FSMTransitionLog."""
+        from django_fsm_log.models import StateLog
+        from django_fsm_rx import FSMTransitionLog
+
+        assert StateLog is FSMTransitionLog
+
+    def test_state_log_uses_django_fsm_rx_app_label(self):
+        """StateLog should use django_fsm_rx app_label (no separate app needed)."""
+        from django_fsm_log.models import StateLog
+
+        # StateLog is an alias, so it uses the same app_label as FSMTransitionLog
+        assert StateLog._meta.app_label == "django_fsm_rx"
+
+    def test_django_fsm_log_does_not_need_installed_apps(self):
+        """django_fsm_log should work without being in INSTALLED_APPS."""
+        # This test verifies that importing from django_fsm_log.models works
+        # without django_fsm_log being in INSTALLED_APPS (only django_fsm_rx needed)
+        from django_fsm_log.models import StateLog
+
+        # The model should be fully functional
+        assert StateLog._meta.model_name == "fsmtransitionlog"
+        assert StateLog._meta.db_table == "django_fsm_rx_fsmtransitionlog"

@@ -246,6 +246,39 @@ All callback parameters are optional - use only what you need:
 
 ## Migration Guide
 
+django-fsm-rx provides full backwards compatibility with django-fsm, django-fsm-2, django-fsm-admin, and django-fsm-log. Your existing code will work with deprecation warnings guiding you to update imports.
+
+### Quick Migration Check
+
+Run the built-in migration check command to find deprecated imports in your project:
+
+```bash
+python manage.py check_fsm_migration
+```
+
+This scans your codebase and shows exactly what imports need updating:
+
+```
+Files affected: 3
+Deprecated imports found: 5
+
+myapp/models.py:
+  Line 1:
+    - from django_fsm import FSMField, transition
+    + from django_fsm_rx import FSMField, transition
+
+myapp/admin.py:
+  Line 2:
+    - from django_fsm_admin.mixins import FSMTransitionMixin
+    + from django_fsm_rx.admin import FSMAdminMixin
+```
+
+Additional options:
+- `--path /path/to/scan` - Scan a specific directory
+- `--exclude migrations,tests` - Exclude directories
+- `--verbose` - Show migration notes
+- `--json` - Output as JSON
+
 ### From [django-fsm-2](https://github.com/django-commons/django-fsm-2) or [django-fsm](https://github.com/viewflow/django-fsm)
 
 #### Step 1: Install the new package
@@ -335,6 +368,143 @@ pip install django-fsm-rx
 ```
 
 Follow the same steps as "From django-fsm-2" above. Your `from django_fsm import ...` imports will also continue to work with a deprecation warning.
+
+### From [django-fsm-log](https://github.com/jazzband/django-fsm-log)
+
+django-fsm-rx includes built-in audit logging that replaces django-fsm-log.
+
+#### Step 1: Install django-fsm-rx
+
+```bash
+pip uninstall django-fsm-log
+pip install django-fsm-rx
+```
+
+#### Step 2: Update INSTALLED_APPS
+
+```python
+# settings.py
+INSTALLED_APPS = [
+    ...,
+    'django_fsm_rx',  # Replaces both django_fsm and django_fsm_log
+    # 'django_fsm_log',  # Remove this - no longer needed
+    ...,
+]
+```
+
+#### Step 3: Update imports
+
+Your existing imports will continue to work:
+
+```python
+# Old (still works via compatibility shim)
+from django_fsm_log.models import StateLog
+
+# New (recommended)
+from django_fsm_rx import FSMTransitionLog
+```
+
+`StateLog` is an alias to `FSMTransitionLog` - they are the same model.
+
+#### Step 4: Migrate existing data (if needed)
+
+If you have existing transition logs in django-fsm-log's `StateLog` table, you can migrate them:
+
+```python
+# One-time migration script
+from django_fsm_log.models import StateLog as OldStateLog  # Original django-fsm-log
+from django_fsm_rx import FSMTransitionLog
+
+for old_log in OldStateLog.objects.all():
+    FSMTransitionLog.objects.create(
+        content_type=old_log.content_type,
+        object_id=str(old_log.object_id),
+        transition_name=old_log.transition,
+        source_state=old_log.source_state,
+        target_state=old_log.state,
+        timestamp=old_log.timestamp,
+        by=old_log.by,
+        description=old_log.description if hasattr(old_log, 'description') else '',
+    )
+```
+
+#### Field Mapping
+
+| django-fsm-log `StateLog` | django-fsm-rx `FSMTransitionLog` |
+|---------------------------|----------------------------------|
+| `content_type` | `content_type` |
+| `object_id` | `object_id` |
+| `transition` | `transition_name` |
+| `source_state` | `source_state` |
+| `state` | `target_state` |
+| `timestamp` | `timestamp` |
+| `by` | `by` |
+| `description` | `description` |
+
+#### Decorators
+
+The `@fsm_log_by` and `@fsm_log_description` decorators are available:
+
+```python
+from django_fsm_rx.log import fsm_log_by, fsm_log_description
+
+@fsm_log_by
+@fsm_log_description
+@transition(field=state, source='draft', target='published')
+def publish(self, by=None, description=None):
+    pass
+```
+
+However, with audit logging enabled (default), you may not need these decorators - transitions are automatically logged.
+
+### From [django-fsm-admin](https://github.com/gadventures/django-fsm-admin)
+
+#### Step 1: Install django-fsm-rx
+
+```bash
+pip uninstall django-fsm-admin
+pip install django-fsm-rx
+```
+
+#### Step 2: Update imports
+
+```python
+# Old (still works via compatibility shim with deprecation warning)
+from django_fsm_admin.mixins import FSMTransitionMixin
+
+# New (recommended)
+from django_fsm_rx.admin import FSMAdminMixin
+```
+
+Note: `FSMTransitionMixin` is aliased to `FSMAdminMixin` for backwards compatibility.
+
+### Programmatic Migration Utilities
+
+For automated migration or CI integration, use the migration utilities programmatically:
+
+```python
+from django_fsm_rx.migration import (
+    scan_imports_in_directory,
+    validate_model_fsm_compatibility,
+    get_import_replacements,
+)
+
+# Scan a directory for deprecated imports
+report = scan_imports_in_directory('/path/to/project')
+print(f"Files to update: {len(report.files_affected)}")
+for item in report.deprecated_imports:
+    print(f"{item['file']}:{item['line']}: {item['old']} -> {item['new']}")
+
+# Validate a model's FSM configuration
+from myapp.models import Order
+warnings = validate_model_fsm_compatibility(Order)
+for warning in warnings:
+    print(f"Warning: {warning}")
+
+# Get all import replacements as a dict
+replacements = get_import_replacements()
+# {'from django_fsm import FSMField': 'from django_fsm_rx import FSMField', ...}
+```
 
 ## Documentation
 

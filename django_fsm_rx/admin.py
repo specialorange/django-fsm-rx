@@ -50,6 +50,7 @@ from django_fsm_rx.widgets import FSMCascadeWidget
 
 __all__ = [
     "FSMAdminMixin",
+    "FSMTransitionMixin",  # Backwards compatibility alias for django-fsm-admin
     "FSMCascadeWidget",
     "FSMObjectTransitions",
 ]
@@ -346,6 +347,10 @@ class FSMAdminMixin(BaseModelAdmin):
             )
             # Pass helper function to template
             context["get_fsm_transition_label"] = self.get_fsm_transition_label
+            # Pass URL name for transition form view
+            info = self.model._meta.app_label, self.model._meta.model_name
+            context["fsm_transition_url_name"] = "admin:{}_{}_fsm_transition".format(*info)
+            context["object_id"] = object_id
 
         return super().change_view(
             request=request,
@@ -659,3 +664,7 @@ class FSMTransitionInline(admin.TabularInline):
     def has_change_permission(self, request: HttpRequest, obj: Any = None) -> bool:
         """Disable editing log entries."""
         return False
+
+
+# Backwards compatibility alias for django-fsm-admin
+FSMTransitionMixin = FSMAdminMixin

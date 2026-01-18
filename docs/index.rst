@@ -12,6 +12,7 @@ Django FSM RX Documentation
    usage
    advanced
    admin
+   migration
    contributing
    changelog
 

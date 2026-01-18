@@ -528,6 +528,9 @@ class TestExportedSymbols:
 
         assert hasattr(admin, "FSMAdminMixin")
         assert hasattr(admin, "FSMObjectTransitions")
+        # Backwards compatibility alias for django-fsm-admin
+        assert hasattr(admin, "FSMTransitionMixin")
+        assert admin.FSMTransitionMixin is admin.FSMAdminMixin
 
     def test_log_exports(self):
         """Test that log utilities are exported from django_fsm_rx.log."""
