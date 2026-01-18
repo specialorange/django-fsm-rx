@@ -1,6 +1,6 @@
 [project]
 name = "django-fsm-rx"
-version = "5.1.2"
+version = "01.02.03"
 description = "Django friendly finite state machine support. RX = Remanufactured."
 readme = "README.md"
 license = "MIT"
@@ -114,6 +114,12 @@ fixable = ["I"]
 ]
 "django_fsm_rx/migration.py" = [
     "C901",  # scan_imports_in_file complexity is acceptable
+]
+"django_fsm_rx/management/commands/bump_version.py" = [
+    "C901",  # handle complexity is acceptable
+]
+"scripts/bump_version.py" = [
+    "C901",  # main complexity is acceptable
 ]
 
 [tool.ruff.lint.isort]

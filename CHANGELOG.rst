@@ -1,6 +1,69 @@
 Changelog
 =========
 
+django-fsm-rx 01.02.03 2026-01-18
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Test
+
+
+django-fsm-rx 5.1.3 2026-01-18
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Add bump_version utility script for release automation
+- Add bump_version Django management command
+- Add releasing documentation (docs/releasing.md)
+- Automates version updates, changelog entries, git commits, tags, and pushing
+
+
+django-fsm-rx 5.1.2 2026-01-18
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Add migration utilities module (django_fsm_rx.migration)
+- Add check_fsm_migration management command for scanning deprecated imports
+- Add backwards compatibility shims for django-fsm-admin (django_fsm_admin package)
+- Add backwards compatibility shims for django-fsm-log decorators
+- Add comprehensive migration documentation
+- Add 51 new tests for migration utilities and management commands
+
+
+django-fsm-rx 5.1.1 2025-01-15
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Add GenericForeignKey shim for django-fsm-log compatibility
+- Improve admin integration with FSMAdminMixin
+- Add tests and documentation for admin features
+
+
+django-fsm-rx 5.1.0 2025-01-14
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Add django-fsm-log integration with FSMTransitionLog model
+- Add by and description fields for transition logging
+- Fix star imports by removing FSMTransitionLog from __all__ to prevent AppRegistryNotReady error
+
+
+django-fsm-rx 5.0.2 2025-01-13
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Update author to specialorange
+- Update package defaults and migrations
+- Add Read the Docs configuration
+- Ruff install on tests and formatting fixes
+
+
+django-fsm-rx 5.0.1 2025-01-12
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Fix PyPI URLs in release workflow
+- Add migration guide for FSMField conversions
+- Fix coverage measurement for django_fsm_rx package
+- Fix Django 6.0+ _do_update signature change (use *args for positional arguments)
+- Add Codecov coverage badge to README
+- Add PyPI version badge to README
+- Address linting issues and add typos config
+
+
 django-fsm-rx 5.0.0 2025-01-12
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -8,184 +71,3 @@ django-fsm-rx 5.0.0 2025-01-12
 - New independent fork combining core FSM, admin integration, and logging
 - Backwards compatible imports from django_fsm and django_fsm_2 (with deprecation warnings)
 - Separated from Django Commons and Jazzband for independent governance
-
-
-django-fsm-2 4.1.0 2025-11-03
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Add support for Django 6.0
-- Add support for Django 5.2
-- Add support for python 3.14
-- Add support for python 3.13
-
-
-django-fsm-2 4.0.0 2024-09-02
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Add support for Django 5.1
-- Remove support for Django 3.2
-- Remove support for Django 4.0
-- Remove support for Django 4.1
-- Move the project to ``django-commons``
-
-
-django-fsm-2 3.0.0 2024-03-26
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-First release of the forked version of django-fsm
-
-- Drop support for Python < 3.8.
-- Add support for python 3.11
-- Add support for python 3.12
-- Drop support for django < 3.2
-- Add support for django 4.2
-- Add support for django 5.0
-- Enable Github actions for testing
-- Remove South support...if exists
-
-django-fsm 2.8.1 2022-08-15
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Improve fix for get_available_FIELD_transition
-
-django-fsm 2.8.0 2021-11-05
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Fix get_available_FIELD_transition on django>=3.2
-- Fix refresh_from_db for ConcurrentTransitionMixin
-
-
-django-fsm 2.7.1 2020-10-13
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Fix warnings on Django 3.1+
-
-
-django-fsm 2.7.0 2019-12-03
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Django 3.0 support
-- Test on Python 3.8
-
-
-django-fsm 2.6.1 2019-04-19
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Update pypi classifiers to latest django/python supported versions
-- Several fixes for graph_transition command
-
-
-django-fsm 2.6.0 2017-06-08
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Fix django 1.11 compatibility
-- Fix TypeError in `graph_transitions` command when using django's lazy translations
-
-
-django-fsm 2.5.0 2017-03-04
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- graph_transition command fix for django 1.10
-- graph_transition command supports GET_STATE targets
-- signal data extended with method args/kwargs and field
-- sets allowed to be passed to the transition decorator
-
-
-django-fsm 2.4.0 2016-05-14
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- graph_transition command now works with multiple  FSM's per model
-- Add ability to set target state from transition return value or callable
-
-
-django-fsm 2.3.0 2015-10-15
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Add source state shortcut '+' to specify transitions from all states except the target
-- Add object-level permission checks
-- Fix translated labels for graph of FSMIntegerField
-- Fix multiple signals for several transition decorators
-
-
-django-fsm 2.2.1 2015-04-27
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Improved exception message for unmet transition conditions.
-- Don't send post transition signal in case of no state changes on
-  exception
-- Allow empty string as correct state value
-- Improved graphviz fsm visualisation
-- Clean django 1.8 warnings
-
-django-fsm 2.2.0 2014-09-03
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Support for `class
-  substitution <http://schinckel.net/2013/06/13/django-proxy-model-state-machine/>`__
-  to proxy classes depending on the state
-- Added ConcurrentTransitionMixin with optimistic locking support
-- Default db\_index=True for FSMIntegerField removed
-- Graph transition code migrated to new graphviz library with python 3
-  support
-- Ability to change state on transition exception
-
-django-fsm 2.1.0 2014-05-15
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Support for attaching permission checks on model transitions
-
-django-fsm 2.0.0 2014-03-15
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Backward incompatible release
-- All public code import moved directly to django\_fsm package
-- Correct support for several @transitions decorator with different
-  source states and conditions on same method
-- save parameter from transition decorator removed
-- get\_available\_FIELD\_transitions return Transition data object
-  instead of tuple
-- Models got get\_available\_FIELD\_transitions, even if field
-  specified as string reference
-- New get\_all\_FIELD\_transitions method contributed to class
-
-django-fsm 1.6.0 2014-03-15
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- FSMIntegerField and FSMKeyField support
-
-django-fsm 1.5.1 2014-01-04
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Ad-hoc support for state fields from proxy and inherited models
-
-django-fsm 1.5.0 2013-09-17
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Python 3 compatibility
-
-django-fsm 1.4.0 2011-12-21
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Add graph\_transition command for drawing state transition picture
-
-django-fsm 1.3.0 2011-07-28
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Add direct field modification protection
-
-django-fsm 1.2.0 2011-03-23
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Add pre\_transition and post\_transition signals
-
-django-fsm 1.1.0 2011-02-22
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Add support for transition conditions
-- Allow multiple FSMField in one model
-- Contribute get\_available\_FIELD\_transitions for model class
-
-django-fsm 1.0.0 2010-10-12
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Initial public release

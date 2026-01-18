@@ -13,6 +13,7 @@ Django FSM RX Documentation
    advanced
    admin
    migration
+   releasing
    contributing
    changelog
 
