@@ -5,7 +5,9 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
+from pathlib import Path
 
 # Add the project root to the path for autodoc
 sys.path.insert(0, os.path.abspath(".."))
@@ -14,7 +16,11 @@ sys.path.insert(0, os.path.abspath(".."))
 project = "Django FSM RX"
 copyright = "2024, specialorange"
 author = "specialorange"
-release = "5.1.0"
+
+# Read version from pyproject.toml
+_pyproject = Path(__file__).parent.parent / "pyproject.toml"
+_version_match = re.search(r'^version\s*=\s*"([^"]+)"', _pyproject.read_text(), re.MULTILINE)
+release = _version_match.group(1) if _version_match else "unknown"
 
 # -- General configuration ---------------------------------------------------
 extensions = [

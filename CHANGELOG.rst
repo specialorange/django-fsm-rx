@@ -1,10 +1,10 @@
 Changelog
 =========
 
-django-fsm-rx 01.02.03 2026-01-18
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+django-fsm-rx 5.1.8 2026-01-18
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-- Test
+- Add AppConfig with explicit default_auto_field to prevent warnings in user projects
 
 
 django-fsm-rx 5.1.7 2026-01-18

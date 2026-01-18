@@ -518,14 +518,25 @@ class TestEdgeCases:
     def test_version_with_leading_zeros_rejected(self):
         """Versions with leading zeros should be handled."""
         # Note: 01.02.03 doesn't match X.Y.Z pattern (single digits)
-        script_path = Path(__file__).parent.parent / "scripts" / "bump_version.py"
-        subprocess.run(
-            ["python", str(script_path), "01.02.03", "-m", "Test"],
-            capture_output=True,
-            text=True,
-        )
-        # This might be accepted or rejected depending on regex - just document behavior
-        # The regex \d+\.\d+\.\d+ will accept it
+        # Must use temp directory to avoid modifying real project files!
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+
+            pyproject = tmpdir / "pyproject.toml"
+            pyproject.write_text('[project]\nname = "test"\nversion = "1.0.0"\n')
+
+            changelog = tmpdir / "CHANGELOG.rst"
+            changelog.write_text("Changelog\n=========\n")
+
+            script_path = Path(__file__).parent.parent / "scripts" / "bump_version.py"
+            subprocess.run(
+                ["python", str(script_path), "01.02.03", "-m", "Test"],
+                capture_output=True,
+                text=True,
+                cwd=tmpdir,
+            )
+            # This might be accepted or rejected depending on regex - just document behavior
+            # The regex \d+\.\d+\.\d+ will accept it
 
     def test_pyproject_with_complex_structure(self):
         """Should handle complex pyproject.toml."""
