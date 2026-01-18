@@ -102,6 +102,9 @@ fixable = ["I"]
 "tests/*" = [
     "DJ008",  # Model does not define `__str__` method
 ]
+"django_fsm_rx/__init__.py" = [
+    "C901",  # _execute_transition and transition complexity is acceptable
+]
 "django_fsm_rx/admin.py" = [
     "C901",  # fsm_transition_view complexity is acceptable
 ]

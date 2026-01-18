@@ -75,7 +75,7 @@ def get_audit_log_model() -> type[models.Model] | None:
 
     # Use built-in model
     try:
-        return apps.get_model('django_fsm_rx', 'FSMTransitionLog')
+        return apps.get_model("django_fsm_rx", "FSMTransitionLog")
     except LookupError:
         logger.warning(
             "FSMTransitionLog model not found. "
@@ -111,14 +111,15 @@ def create_audit_log(
 
     # Import ContentType lazily to avoid AppRegistryNotReady during module import
     from django.contrib.contenttypes.models import ContentType
+
     content_type = ContentType.objects.get_for_model(instance)
 
     log_data = {
-        'content_type': content_type,
-        'object_id': str(instance.pk) if instance.pk else '',
-        'transition_name': transition_name,
-        'source_state': str(source_state) if source_state else '',
-        'target_state': str(target_state) if target_state else '',
+        "content_type": content_type,
+        "object_id": str(instance.pk) if instance.pk else "",
+        "transition_name": transition_name,
+        "source_state": str(source_state) if source_state else "",
+        "target_state": str(target_state) if target_state else "",
     }
 
     # Allow custom models to accept additional fields
@@ -168,11 +169,11 @@ def transaction_audit_callback(
     if not fsm_rx_settings.AUDIT_LOG:
         return
 
-    if fsm_rx_settings.AUDIT_LOG_MODE != 'transaction':
+    if fsm_rx_settings.AUDIT_LOG_MODE != "transaction":
         return
 
     # Get transition name from kwargs if available
-    transition_name = kwargs.get('transition_name', 'unknown')
+    transition_name = kwargs.get("transition_name", "unknown")
 
     _create_audit_log_safe(
         instance=instance,
@@ -200,7 +201,7 @@ def signal_audit_log(
     if not fsm_rx_settings.AUDIT_LOG:
         return
 
-    if fsm_rx_settings.AUDIT_LOG_MODE != 'signal':
+    if fsm_rx_settings.AUDIT_LOG_MODE != "signal":
         return
 
     _create_audit_log_safe(

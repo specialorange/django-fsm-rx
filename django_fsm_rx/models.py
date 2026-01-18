@@ -31,7 +31,7 @@ class FSMTransitionLog(models.Model):
     """
 
     content_type = models.ForeignKey(
-        'contenttypes.ContentType',
+        "contenttypes.ContentType",
         on_delete=models.CASCADE,
         help_text="The model type that was transitioned",
     )
@@ -56,11 +56,11 @@ class FSMTransitionLog(models.Model):
     )
 
     class Meta:
-        app_label = 'django_fsm_rx'
-        ordering = ['-timestamp']
+        app_label = "django_fsm_rx"
+        ordering = ["-timestamp"]
         indexes = [
-            models.Index(fields=['content_type', 'object_id']),
-            models.Index(fields=['-timestamp']),
+            models.Index(fields=["content_type", "object_id"]),
+            models.Index(fields=["-timestamp"]),
         ]
 
     def __str__(self) -> str:

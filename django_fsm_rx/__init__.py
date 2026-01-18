@@ -18,6 +18,7 @@ Example:
 from __future__ import annotations
 
 import inspect
+import warnings
 from collections.abc import Callable
 from collections.abc import Iterator
 from collections.abc import Sequence
@@ -28,8 +29,6 @@ from typing import Any
 from typing import TypeVar
 from typing import Union
 
-import warnings
-
 from django.apps import apps as django_apps
 from django.db import models
 from django.db import transaction
@@ -39,21 +38,23 @@ from django.db.models import QuerySet
 from django.db.models.query_utils import DeferredAttribute
 from django.db.models.signals import class_prepared
 
+# Import audit module to register signal receiver and re-export key functions
+from django_fsm_rx import audit as _audit  # noqa: F401
+from django_fsm_rx.audit import create_audit_log
+from django_fsm_rx.audit import get_audit_log_model
 from django_fsm_rx.conf import fsm_rx_settings
 from django_fsm_rx.signals import post_transition
 from django_fsm_rx.signals import pre_transition
-
-# Import audit module to register signal receiver and re-export key functions
-from django_fsm_rx import audit as _audit  # noqa: F401
-from django_fsm_rx.audit import create_audit_log, get_audit_log_model
 
 
 def __getattr__(name: str) -> Any:
     """Lazy import for FSMTransitionLog to avoid AppRegistryNotReady errors."""
     if name == "FSMTransitionLog":
         from django_fsm_rx.models import FSMTransitionLog
+
         return FSMTransitionLog
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractBaseUser
@@ -868,6 +869,7 @@ class FSMFieldMixin:
             # Check if database connection is available before using atomic
             try:
                 from django.db import connection
+
                 connection.ensure_connection()
                 with transaction.atomic():
                     return self._execute_transition(instance, method, meta, current_state, *args, **kwargs)
@@ -945,6 +947,7 @@ class FSMFieldMixin:
             # Transaction-mode audit logging (runs inside atomic block, rolls back together)
             # Import here to avoid circular import
             from django_fsm_rx.audit import transaction_audit_callback
+
             transaction_audit_callback(
                 instance=instance,
                 source=current_state,
@@ -1481,9 +1484,13 @@ def transition(
 
         if isinstance(source, (list, tuple, set)):
             for state in source:
-                func._django_fsm_rx.add_transition(func, state, target, on_error, conditions, permission, custom, on_success, on_commit, atomic)
+                func._django_fsm_rx.add_transition(
+                    func, state, target, on_error, conditions, permission, custom, on_success, on_commit, atomic
+                )
         else:
-            func._django_fsm_rx.add_transition(func, source, target, on_error, conditions, permission, custom, on_success, on_commit, atomic)
+            func._django_fsm_rx.add_transition(
+                func, source, target, on_error, conditions, permission, custom, on_success, on_commit, atomic
+            )
 
         @wraps(func)
         def _change_state(instance: Model, *args: Any, **kwargs: Any) -> Any:

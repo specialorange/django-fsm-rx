@@ -13,13 +13,16 @@ These tests verify:
 from __future__ import annotations
 
 import warnings
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 from django.db import models
 
-from django_fsm_rx import FSMField, transition, can_proceed, TransitionNotAllowed
-
+from django_fsm_rx import FSMField
+from django_fsm_rx import TransitionNotAllowed
+from django_fsm_rx import can_proceed
+from django_fsm_rx import transition
 
 # Track callback invocations
 invocation_log: list[dict] = []
@@ -32,22 +35,26 @@ def reset_invocation_log():
 
 def on_success_callback(instance, source, target, **kwargs):
     """on_success callback that logs invocation."""
-    invocation_log.append({
-        "type": "on_success",
-        "source": source,
-        "target": target,
-        "order": len(invocation_log),
-    })
+    invocation_log.append(
+        {
+            "type": "on_success",
+            "source": source,
+            "target": target,
+            "order": len(invocation_log),
+        }
+    )
 
 
 def on_commit_callback(instance, source, target, **kwargs):
     """on_commit callback that logs invocation."""
-    invocation_log.append({
-        "type": "on_commit",
-        "source": source,
-        "target": target,
-        "order": len(invocation_log),
-    })
+    invocation_log.append(
+        {
+            "type": "on_commit",
+            "source": source,
+            "target": target,
+            "order": len(invocation_log),
+        }
+    )
 
 
 def failing_on_success_callback(instance, source, target, **kwargs):
@@ -63,6 +70,7 @@ def failing_on_success_callback(instance, source, target, **kwargs):
 
 class BasicModel(models.Model):
     """Model with default atomic=True behavior."""
+
     state = FSMField(default="new")
 
     @transition(field=state, source="new", target="done", on_success=on_success_callback)
@@ -75,6 +83,7 @@ class BasicModel(models.Model):
 
 class OnCommitModel(models.Model):
     """Model with on_commit callback."""
+
     state = FSMField(default="new")
 
     @transition(
@@ -93,6 +102,7 @@ class OnCommitModel(models.Model):
 
 class AtomicFalseModel(models.Model):
     """Model with atomic=False (should emit warning)."""
+
     state = FSMField(default="new")
 
     # This will emit a DeprecationWarning at class definition time
@@ -109,6 +119,7 @@ class AtomicFalseModel(models.Model):
 
 class MultipleTransitionsModel(models.Model):
     """Model with multiple transitions to test isolation."""
+
     state = FSMField(default="new")
 
     @transition(
@@ -145,6 +156,7 @@ class MultipleTransitionsModel(models.Model):
 
 class FailingOnSuccessModel(models.Model):
     """Model where on_success callback fails."""
+
     state = FSMField(default="new")
 
     @transition(
@@ -163,6 +175,7 @@ class FailingOnSuccessModel(models.Model):
 
 class NoCallbacksModel(models.Model):
     """Model with no callbacks - backwards compatibility test."""
+
     state = FSMField(default="new")
 
     @transition(field=state, source="new", target="done")
@@ -179,6 +192,7 @@ class NoCallbacksModel(models.Model):
 
 class MultipleSourcesModel(models.Model):
     """Model with transition from multiple sources."""
+
     state = FSMField(default="new")
 
     @transition(
@@ -200,6 +214,7 @@ class MultipleSourcesModel(models.Model):
 
 class WildcardModel(models.Model):
     """Model with wildcard transitions."""
+
     state = FSMField(default="new")
 
     @transition(field=state, source="*", target="cancelled", on_success=on_success_callback)

@@ -13,8 +13,8 @@ from __future__ import annotations
 import pytest
 from django.db import models
 
-from django_fsm_rx import FSMField
 from django_fsm_rx import RETURN_VALUE
+from django_fsm_rx import FSMField
 from django_fsm_rx import TransitionNotAllowed
 from django_fsm_rx import transition
 from django_fsm_rx.signals import post_transition

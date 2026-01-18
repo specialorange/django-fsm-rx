@@ -34,7 +34,7 @@ class TestDefaultSettings:
     def test_audit_log_mode_default_is_transaction(self):
         """Default AUDIT_LOG_MODE should be 'transaction'."""
         settings = FSMRXSettings()
-        assert settings.AUDIT_LOG_MODE == 'transaction'
+        assert settings.AUDIT_LOG_MODE == "transaction"
 
     def test_audit_log_model_default_is_none(self):
         """Default AUDIT_LOG_MODEL should be None."""
@@ -48,51 +48,51 @@ class TestDefaultSettings:
 
     def test_all_defaults_documented(self):
         """All DEFAULTS should be documented."""
-        expected_keys = {'ATOMIC', 'AUDIT_LOG', 'AUDIT_LOG_MODE', 'AUDIT_LOG_MODEL', 'PROTECTED_FIELDS'}
+        expected_keys = {"ATOMIC", "AUDIT_LOG", "AUDIT_LOG_MODE", "AUDIT_LOG_MODEL", "PROTECTED_FIELDS"}
         assert set(DEFAULTS.keys()) == expected_keys
 
 
 class TestCustomSettings:
     """Tests for custom settings override."""
 
-    @override_settings(DJANGO_FSM_RX={'ATOMIC': False})
+    @override_settings(DJANGO_FSM_RX={"ATOMIC": False})
     def test_atomic_can_be_overridden(self):
         """ATOMIC can be overridden via settings."""
         settings = FSMRXSettings()
         assert settings.ATOMIC is False
 
-    @override_settings(DJANGO_FSM_RX={'AUDIT_LOG': False})
+    @override_settings(DJANGO_FSM_RX={"AUDIT_LOG": False})
     def test_audit_log_can_be_overridden(self):
         """AUDIT_LOG can be overridden via settings."""
         settings = FSMRXSettings()
         assert settings.AUDIT_LOG is False
 
-    @override_settings(DJANGO_FSM_RX={'AUDIT_LOG_MODE': 'signal'})
+    @override_settings(DJANGO_FSM_RX={"AUDIT_LOG_MODE": "signal"})
     def test_audit_log_mode_can_be_overridden(self):
         """AUDIT_LOG_MODE can be overridden via settings."""
         settings = FSMRXSettings()
-        assert settings.AUDIT_LOG_MODE == 'signal'
+        assert settings.AUDIT_LOG_MODE == "signal"
 
-    @override_settings(DJANGO_FSM_RX={'AUDIT_LOG_MODEL': 'myapp.CustomLog'})
+    @override_settings(DJANGO_FSM_RX={"AUDIT_LOG_MODEL": "myapp.CustomLog"})
     def test_audit_log_model_can_be_overridden(self):
         """AUDIT_LOG_MODEL can be overridden via settings."""
         settings = FSMRXSettings()
-        assert settings.AUDIT_LOG_MODEL == 'myapp.CustomLog'
+        assert settings.AUDIT_LOG_MODEL == "myapp.CustomLog"
 
-    @override_settings(DJANGO_FSM_RX={'PROTECTED_FIELDS': True})
+    @override_settings(DJANGO_FSM_RX={"PROTECTED_FIELDS": True})
     def test_protected_fields_can_be_overridden(self):
         """PROTECTED_FIELDS can be overridden via settings."""
         settings = FSMRXSettings()
         assert settings.PROTECTED_FIELDS is True
 
-    @override_settings(DJANGO_FSM_RX={'ATOMIC': False, 'AUDIT_LOG': False})
+    @override_settings(DJANGO_FSM_RX={"ATOMIC": False, "AUDIT_LOG": False})
     def test_multiple_settings_can_be_overridden(self):
         """Multiple settings can be overridden at once."""
         settings = FSMRXSettings()
         assert settings.ATOMIC is False
         assert settings.AUDIT_LOG is False
         # Others remain default
-        assert settings.AUDIT_LOG_MODE == 'transaction'
+        assert settings.AUDIT_LOG_MODE == "transaction"
 
 
 class TestSettingsCache:
@@ -132,6 +132,7 @@ class TestSingletonInstance:
     def test_singleton_is_available(self):
         """fsm_rx_settings should be importable."""
         from django_fsm_rx import fsm_rx_settings as imported_settings
+
         assert imported_settings is not None
 
     def test_singleton_has_correct_type(self):
@@ -144,4 +145,4 @@ class TestSingletonInstance:
         fsm_rx_settings.clear_cache()
         assert fsm_rx_settings.ATOMIC is True
         assert fsm_rx_settings.AUDIT_LOG is True
-        assert fsm_rx_settings.AUDIT_LOG_MODE == 'transaction'
+        assert fsm_rx_settings.AUDIT_LOG_MODE == "transaction"

@@ -133,3 +133,4 @@ test.db
 
 # django fsm command tests
 exports/*
+settings.local.json

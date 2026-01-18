@@ -37,15 +37,13 @@ from django.conf import settings
 
 DEFAULTS = {
     # Transaction behavior
-    'ATOMIC': True,
-
+    "ATOMIC": True,
     # Audit logging
-    'AUDIT_LOG': True,              # Enable automatic audit logging
-    'AUDIT_LOG_MODE': 'transaction',  # 'transaction' (default, rolls back together) or 'signal' (decoupled)
-    'AUDIT_LOG_MODEL': None,        # Custom audit log model (e.g., 'myapp.TransitionLog')
-
+    "AUDIT_LOG": True,  # Enable automatic audit logging
+    "AUDIT_LOG_MODE": "transaction",  # 'transaction' (default, rolls back together) or 'signal' (decoupled)
+    "AUDIT_LOG_MODEL": None,  # Custom audit log model (e.g., 'myapp.TransitionLog')
     # Field defaults
-    'PROTECTED_FIELDS': False,
+    "PROTECTED_FIELDS": False,
 }
 
 
@@ -68,12 +66,12 @@ class FSMRXSettings:
     @property
     def _settings(self) -> dict[str, Any]:
         if self._cached_settings is None:
-            user_settings = getattr(settings, 'DJANGO_FSM_RX', {})
+            user_settings = getattr(settings, "DJANGO_FSM_RX", {})
             self._cached_settings = {**DEFAULTS, **user_settings}
         return self._cached_settings
 
     def __getattr__(self, name: str) -> Any:
-        if name.startswith('_'):
+        if name.startswith("_"):
             raise AttributeError(name)
 
         if name not in DEFAULTS:
