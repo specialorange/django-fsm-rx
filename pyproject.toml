@@ -1,6 +1,6 @@
 [project]
 name = "django-fsm-rx"
-version = "5.0.2"
+version = "5.1.0"
 description = "Django friendly finite state machine support. RX = Remanufactured."
 readme = "README.md"
 license = "MIT"
@@ -36,11 +36,16 @@ classifiers = [
 [project.urls]
 Homepage = "https://github.com/specialorange/django-fsm-rx"
 Repository = "https://github.com/specialorange/django-fsm-rx"
-Documentation = "https://github.com/specialorange/django-fsm-rx"
+Documentation = "https://django-fsm-rx.readthedocs.io"
 
 [project.optional-dependencies]
 graphviz = [
     "graphviz",
+]
+docs = [
+    "sphinx",
+    "furo",
+    "myst-parser",
 ]
 
 [dependency-groups]

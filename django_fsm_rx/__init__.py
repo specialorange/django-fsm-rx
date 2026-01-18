@@ -28,16 +28,32 @@ from typing import Any
 from typing import TypeVar
 from typing import Union
 
+import warnings
+
 from django.apps import apps as django_apps
 from django.db import models
+from django.db import transaction
 from django.db.models import Field
 from django.db.models import Model
 from django.db.models import QuerySet
 from django.db.models.query_utils import DeferredAttribute
 from django.db.models.signals import class_prepared
 
+from django_fsm_rx.conf import fsm_rx_settings
 from django_fsm_rx.signals import post_transition
 from django_fsm_rx.signals import pre_transition
+
+# Import audit module to register signal receiver and re-export key functions
+from django_fsm_rx import audit as _audit  # noqa: F401
+from django_fsm_rx.audit import create_audit_log, get_audit_log_model
+
+
+def __getattr__(name: str) -> Any:
+    """Lazy import for FSMTransitionLog to avoid AppRegistryNotReady errors."""
+    if name == "FSMTransitionLog":
+        from django_fsm_rx.models import FSMTransitionLog
+        return FSMTransitionLog
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractBaseUser
@@ -61,6 +77,12 @@ __all__ = [
     "Transition",
     "TransitionCallback",
     "FSMMeta",
+    # Settings
+    "fsm_rx_settings",
+    # Audit logging
+    "FSMTransitionLog",
+    "create_audit_log",
+    "get_audit_log_model",
 ]
 
 # Type aliases for better readability and documentation
@@ -111,6 +133,9 @@ Example:
 
 _F = TypeVar("_F", bound=Callable[..., Any])
 """TypeVar for decorated transition methods."""
+
+# Sentinel value to detect when atomic parameter wasn't explicitly set
+_ATOMIC_DEFAULT = object()
 
 _M = TypeVar("_M", bound=Model)
 """TypeVar for Django model instances."""
@@ -197,6 +222,8 @@ class Transition:
         permission: Permission string or callable for access control.
         custom: Dictionary of custom properties attached to the transition.
         on_success: Callback function invoked after successful transition.
+        on_commit: Callback function invoked after transaction commits.
+        atomic: Whether to wrap the transition in a database transaction.
         name: The name of the transition method (read-only property).
 
     Example:
@@ -215,6 +242,8 @@ class Transition:
     permission: PermissionType
     custom: CustomDict
     on_success: TransitionCallback | None
+    on_commit: TransitionCallback | None
+    atomic: bool
 
     def __init__(
         self,
@@ -226,6 +255,8 @@ class Transition:
         permission: PermissionType,
         custom: CustomDict,
         on_success: TransitionCallback | None = None,
+        on_commit: TransitionCallback | None = None,
+        atomic: bool = True,
     ) -> None:
         self.method = method
         self.source = source
@@ -235,6 +266,8 @@ class Transition:
         self.permission = permission
         self.custom = custom
         self.on_success = on_success
+        self.on_commit = on_commit
+        self.atomic = atomic
 
     @property
     def name(self) -> str:
@@ -468,6 +501,8 @@ class FSMMeta:
         permission: PermissionType = None,
         custom: CustomDict | None = None,
         on_success: TransitionCallback | None = None,
+        on_commit: TransitionCallback | None = None,
+        atomic: bool = True,
     ) -> None:
         """
         Register a new transition from a source state.
@@ -481,6 +516,8 @@ class FSMMeta:
             permission: Permission string or callable.
             custom: Custom properties dictionary.
             on_success: Callback function invoked after successful transition.
+            on_commit: Callback function invoked after transaction commits.
+            atomic: Whether to wrap the transition in a database transaction (default True).
 
         Raises:
             AssertionError: If a transition from this source already exists.
@@ -497,6 +534,8 @@ class FSMMeta:
             permission=permission,
             custom=custom if custom is not None else {},
             on_success=on_success,
+            on_commit=on_commit,
+            atomic=atomic,
         )
 
     def has_transition(self, state: StateValue) -> bool:
@@ -804,6 +843,7 @@ class FSMFieldMixin:
         4. Executes the transition method
         5. Updates state (handles dynamic state resolution)
         6. Sends post_transition signal
+        7. Optionally wraps everything in a database transaction (if atomic=True)
 
         Args:
             instance: The model instance.
@@ -818,8 +858,41 @@ class FSMFieldMixin:
             TransitionNotAllowed: If transition is not allowed or conditions not met.
         """
         meta: FSMMeta = method._django_fsm_rx
-        method_name = method.__name__
         current_state = self.get_state(instance)
+
+        # Get the transition to check if atomic is enabled
+        transition_obj = meta.get_transition(current_state)
+        use_atomic = transition_obj.atomic if transition_obj else False
+
+        if use_atomic:
+            # Check if database connection is available before using atomic
+            try:
+                from django.db import connection
+                connection.ensure_connection()
+                with transaction.atomic():
+                    return self._execute_transition(instance, method, meta, current_state, *args, **kwargs)
+            except Exception:
+                # Fall back to non-atomic if DB not available (e.g., in tests without django_db mark)
+                return self._execute_transition(instance, method, meta, current_state, *args, **kwargs)
+        else:
+            return self._execute_transition(instance, method, meta, current_state, *args, **kwargs)
+
+    def _execute_transition(
+        self,
+        instance: Model,
+        method: Callable[..., Any],
+        meta: FSMMeta,
+        current_state: StateValue,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
+        """
+        Execute the actual transition logic.
+
+        This is the internal implementation called by change_state, potentially
+        wrapped in a transaction.atomic() block.
+        """
+        method_name = method.__name__
 
         if not meta.has_transition(current_state):
             raise TransitionNotAllowed(
@@ -869,16 +942,44 @@ class FSMFieldMixin:
         else:
             post_transition.send(**signal_kwargs)
 
-            # Call on_success callback if defined
-            transition = meta.get_transition(current_state)
-            if transition and transition.on_success:
-                transition.on_success(
+            # Transaction-mode audit logging (runs inside atomic block, rolls back together)
+            # Import here to avoid circular import
+            from django_fsm_rx.audit import transaction_audit_callback
+            transaction_audit_callback(
+                instance=instance,
+                source=current_state,
+                target=next_state,
+                transition_name=method_name,
+            )
+
+            # Call on_success callback if defined (runs immediately, in transaction)
+            transition_obj = meta.get_transition(current_state)
+            if transition_obj and transition_obj.on_success:
+                transition_obj.on_success(
                     instance=instance,
                     source=current_state,
                     target=next_state,
                     method_args=args,
                     method_kwargs=kwargs,
                 )
+
+            # Call on_commit callback if defined (runs after transaction commits)
+            if transition_obj and transition_obj.on_commit:
+                # Capture values for the closure
+                callback = transition_obj.on_commit
+                commit_kwargs = {
+                    "instance": instance,
+                    "source": current_state,
+                    "target": next_state,
+                    "method_args": args,
+                    "method_kwargs": kwargs,
+                }
+                try:
+                    transaction.on_commit(lambda: callback(**commit_kwargs))
+                except RuntimeError:
+                    # DB not available (e.g., in tests without django_db mark)
+                    # Execute callback immediately as fallback
+                    callback(**commit_kwargs)
 
         return result
 
@@ -1270,6 +1371,8 @@ def transition(
     permission: PermissionType = None,
     custom: CustomDict | None = None,
     on_success: TransitionCallback | None = None,
+    on_commit: TransitionCallback | None = None,
+    atomic: bool | object = _ATOMIC_DEFAULT,
 ) -> Callable[[_F], _F]:
     """
     Decorator to mark a method as a state transition.
@@ -1281,6 +1384,8 @@ def transition(
     4. Change the state to target (if successful)
     5. Send pre/post transition signals
     6. Call on_success callback (if provided)
+    7. Register on_commit callback (if provided)
+    8. Optionally wrap everything in transaction.atomic() (if atomic=True)
 
     Args:
         field: The FSM field to transition on. Can be the field instance
@@ -1302,36 +1407,70 @@ def transition(
             taking (instance, user) and returning bool. Default is None.
         custom: Dictionary of custom properties accessible on the Transition
             object. Default is empty dict.
-        on_success: Callback function invoked after successful transition.
+        on_success: Callback function invoked immediately after successful
+            transition, within the same database transaction. Use for
+            in-transaction operations like updating related models or
+            creating audit logs that should roll back if the transaction fails.
             Receives (instance, source, target, method_args, method_kwargs).
-            This is an alternative to using signals for side effects.
             Default is None.
+        on_commit: Callback function invoked after the database transaction
+            commits successfully. Use for external side effects like sending
+            emails, calling external APIs, or triggering Celery tasks.
+            Only runs if the transaction commits; skipped on rollback.
+            Receives (instance, source, target, method_args, method_kwargs).
+            Default is None.
+        atomic: If True, wraps the entire transition (including on_success
+            callback and save if called within the transition) in a database
+            transaction. If the transition or on_success raises an exception,
+            all database changes roll back. The on_commit callback only runs
+            after the atomic block commits successfully.
+            Set to False to disable transaction wrapping (not recommended).
+            Default is controlled by DJANGO_FSM_RX['ATOMIC'] setting (True).
 
     Returns:
         A decorator that wraps the method with transition logic.
 
     Example:
         >>> def log_publish(instance, source, target, **kwargs):
-        ...     print(f"Published! {source} -> {target}")
+        ...     # Runs in transaction - will roll back if save() fails
+        ...     AuditLog.objects.create(instance=instance, action='published')
+        ...
+        >>> def notify_published(instance, source, target, **kwargs):
+        ...     # Runs after commit - safe for external side effects
+        ...     send_email(instance.author.email, "Your post is live!")
         ...
         >>> class BlogPost(models.Model):
         ...     state = FSMField(default='draft')
         ...
         ...     @transition(field=state, source='draft', target='published',
-        ...                 conditions=[is_valid], permission='blog.publish',
-        ...                 on_success=log_publish)
+        ...                 on_success=log_publish, on_commit=notify_published,
+        ...                 atomic=True)
         ...     def publish(self):
         ...         '''Publish the blog post.'''
         ...         self.published_at = timezone.now()
+        ...         self.save()  # Included in atomic transaction
         ...
         >>> post = BlogPost()
-        >>> post.publish()  # state changes from 'draft' to 'published'
+        >>> post.publish()  # Everything atomic, email sent after commit
     """
     # Use empty list/dict as defaults, not mutable defaults
     if conditions is None:
         conditions = []
     if custom is None:
         custom = {}
+
+    # Resolve atomic default from settings if not explicitly set
+    if atomic is _ATOMIC_DEFAULT:
+        atomic = fsm_rx_settings.ATOMIC
+
+    if not atomic:
+        warnings.warn(
+            "atomic=False is not recommended. As of django-fsm-rx 5.1.0, "
+            "atomic defaults to True for safer transactions. "
+            "Set atomic=True or remove atomic=False to silence this warning.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
     def inner_transition(func: _F) -> _F:
         wrapper_installed, fsm_meta = True, getattr(func, "_django_fsm_rx", None)
@@ -1342,9 +1481,9 @@ def transition(
 
         if isinstance(source, (list, tuple, set)):
             for state in source:
-                func._django_fsm_rx.add_transition(func, state, target, on_error, conditions, permission, custom, on_success)
+                func._django_fsm_rx.add_transition(func, state, target, on_error, conditions, permission, custom, on_success, on_commit, atomic)
         else:
-            func._django_fsm_rx.add_transition(func, source, target, on_error, conditions, permission, custom, on_success)
+            func._django_fsm_rx.add_transition(func, source, target, on_error, conditions, permission, custom, on_success, on_commit, atomic)
 
         @wraps(func)
         def _change_state(instance: Model, *args: Any, **kwargs: Any) -> Any:

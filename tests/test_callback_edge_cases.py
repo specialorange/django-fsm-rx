@@ -501,6 +501,52 @@ class TestCallbackWithArguments:
         assert args_log[0]["method_kwargs"] == {"reviewer": "Bob", "priority": 5}
 
 
+def _condition_always_true(instance):
+    return True
+
+
+def _condition_always_false(instance):
+    return False
+
+
+class ConditionPassModel(models.Model):
+    """Model for testing callback when conditions pass."""
+
+    state = FSMField(default="draft")
+
+    @transition(
+        field=state,
+        source="draft",
+        target="published",
+        conditions=[_condition_always_true],
+        on_success=logging_callback,
+    )
+    def publish(self):
+        pass
+
+    class Meta:
+        app_label = "tests"
+
+
+class ConditionFailModel(models.Model):
+    """Model for testing callback when conditions fail."""
+
+    state = FSMField(default="draft")
+
+    @transition(
+        field=state,
+        source="draft",
+        target="published",
+        conditions=[_condition_always_false],
+        on_success=logging_callback,
+    )
+    def publish(self):
+        pass
+
+    class Meta:
+        app_label = "tests"
+
+
 class TestCallbackWithConditions:
     """Test callbacks when transition has conditions."""
 
@@ -509,27 +555,7 @@ class TestCallbackWithConditions:
 
     def test_callback_invoked_when_conditions_pass(self):
         """Callback should be invoked when conditions pass."""
-
-        def always_true(instance):
-            return True
-
-        class ConditionModel(models.Model):
-            state = FSMField(default="draft")
-
-            @transition(
-                field=state,
-                source="draft",
-                target="published",
-                conditions=[always_true],
-                on_success=logging_callback,
-            )
-            def publish(self):
-                pass
-
-            class Meta:
-                app_label = "tests"
-
-        model = ConditionModel()
+        model = ConditionPassModel()
         model.publish()
 
         assert len(invocation_log) == 1
@@ -537,27 +563,7 @@ class TestCallbackWithConditions:
 
     def test_callback_not_invoked_when_conditions_fail(self):
         """Callback should NOT be invoked when conditions fail."""
-
-        def always_false(instance):
-            return False
-
-        class ConditionModel(models.Model):
-            state = FSMField(default="draft")
-
-            @transition(
-                field=state,
-                source="draft",
-                target="published",
-                conditions=[always_false],
-                on_success=logging_callback,
-            )
-            def publish(self):
-                pass
-
-            class Meta:
-                app_label = "tests"
-
-        model = ConditionModel()
+        model = ConditionFailModel()
 
         with pytest.raises(TransitionNotAllowed):
             model.publish()

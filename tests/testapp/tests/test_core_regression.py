@@ -387,23 +387,38 @@ class TestMultipleSourceStates:
         assert obj2.state == "done"
 
 
+class OnErrorStateModel(models.Model):
+    """Model for testing on_error state changes."""
+
+    state = FSMField(default="new")
+
+    @transition(field=state, source="new", target="done", on_error="failed")
+    def process(self):
+        raise ValueError("Processing failed")
+
+    class Meta:
+        app_label = "testapp"
+
+
+class OnErrorSignalModel(models.Model):
+    """Model for testing on_error signal behavior."""
+
+    state = FSMField(default="new")
+
+    @transition(field=state, source="new", target="done", on_error="failed")
+    def process(self):
+        raise ValueError("Test error")
+
+    class Meta:
+        app_label = "testapp"
+
+
 class TestOnError:
     """Regression tests for on_error handling."""
 
     def test_on_error_changes_state_on_exception(self):
         """Test that on_error state is set when exception occurs."""
-
-        class ErrorModel(models.Model):
-            state = FSMField(default="new")
-
-            @transition(field=state, source="new", target="done", on_error="failed")
-            def process(self):
-                raise ValueError("Processing failed")
-
-            class Meta:
-                app_label = "testapp"
-
-        obj = ErrorModel()
+        obj = OnErrorStateModel()
         with pytest.raises(ValueError):
             obj.process()
 
@@ -412,25 +427,14 @@ class TestOnError:
 
     def test_on_error_signal_includes_exception(self):
         """Test that post_transition signal includes exception on error."""
-
-        class ErrorModel(models.Model):
-            state = FSMField(default="new")
-
-            @transition(field=state, source="new", target="done", on_error="failed")
-            def process(self):
-                raise ValueError("Test error")
-
-            class Meta:
-                app_label = "testapp"
-
         received = []
 
         def handler(sender, **kwargs):
             received.append(kwargs)
 
-        post_transition.connect(handler, sender=ErrorModel)
+        post_transition.connect(handler, sender=OnErrorSignalModel)
         try:
-            obj = ErrorModel()
+            obj = OnErrorSignalModel()
             with pytest.raises(ValueError):
                 obj.process()
 
@@ -438,7 +442,7 @@ class TestOnError:
             assert "exception" in received[0]
             assert isinstance(received[0]["exception"], ValueError)
         finally:
-            post_transition.disconnect(handler, sender=ErrorModel)
+            post_transition.disconnect(handler, sender=OnErrorSignalModel)
 
 
 class TestFSMIntegerField:

@@ -14,6 +14,7 @@ import pytest
 from django.db import models
 
 from django_fsm_rx import FSMField
+from django_fsm_rx import RETURN_VALUE
 from django_fsm_rx import TransitionNotAllowed
 from django_fsm_rx import transition
 from django_fsm_rx.signals import post_transition
@@ -194,63 +195,73 @@ class TestPostTransitionSignal:
         assert isinstance(call["kwargs"]["exception"], ValueError)
 
 
+# Module-level tracking for execution order tests
+_execution_order: list[str] = []
+
+
+class SignalOrderPreModel(models.Model):
+    """Model for testing pre-signal order."""
+
+    state = FSMField(default="draft")
+
+    @transition(field=state, source="draft", target="published")
+    def publish(self):
+        _execution_order.append("method")
+
+    class Meta:
+        app_label = "tests"
+
+
+class SignalOrderPostModel(models.Model):
+    """Model for testing post-signal order."""
+
+    state = FSMField(default="draft")
+
+    @transition(field=state, source="draft", target="published")
+    def publish(self):
+        _execution_order.append("method")
+
+    class Meta:
+        app_label = "tests"
+
+
 class TestSignalOrder:
     """Test signal execution order."""
 
     def test_pre_signal_before_method_execution(self, signal_tracker):
         """pre_transition should fire before transition method executes."""
-        execution_order = []
+        _execution_order.clear()
 
         def pre_handler(sender, instance, name, source, target, **kwargs):
-            execution_order.append("pre_signal")
+            _execution_order.append("pre_signal")
             signal_tracker.pre_calls.append({})
 
         pre_transition.disconnect(signal_tracker.pre_handler)
         pre_transition.connect(pre_handler)
 
-        class OrderModel(models.Model):
-            state = FSMField(default="draft")
-
-            @transition(field=state, source="draft", target="published")
-            def publish(self):
-                execution_order.append("method")
-
-            class Meta:
-                app_label = "tests"
-
         try:
-            model = OrderModel()
+            model = SignalOrderPreModel()
             model.publish()
-            assert execution_order == ["pre_signal", "method"]
+            assert _execution_order == ["pre_signal", "method"]
         finally:
             pre_transition.disconnect(pre_handler)
             pre_transition.connect(signal_tracker.pre_handler)
 
     def test_post_signal_after_method_execution(self, signal_tracker):
         """post_transition should fire after transition method executes."""
-        execution_order = []
+        _execution_order.clear()
 
         def post_handler(sender, instance, name, source, target, **kwargs):
-            execution_order.append("post_signal")
+            _execution_order.append("post_signal")
             signal_tracker.post_calls.append({})
 
         post_transition.disconnect(signal_tracker.post_handler)
         post_transition.connect(post_handler)
 
-        class OrderModel(models.Model):
-            state = FSMField(default="draft")
-
-            @transition(field=state, source="draft", target="published")
-            def publish(self):
-                execution_order.append("method")
-
-            class Meta:
-                app_label = "tests"
-
         try:
-            model = OrderModel()
+            model = SignalOrderPostModel()
             model.publish()
-            assert execution_order == ["method", "post_signal"]
+            assert _execution_order == ["method", "post_signal"]
         finally:
             post_transition.disconnect(post_handler)
             post_transition.connect(signal_tracker.post_handler)
@@ -368,28 +379,29 @@ class TestSignalWithStateChange:
             pre_transition.connect(signal_tracker.pre_handler)
 
 
+class SignalDynamicTargetModel(models.Model):
+    """Model for testing signals with dynamic targets."""
+
+    state = FSMField(default="draft")
+
+    @transition(
+        field=state,
+        source="draft",
+        target=RETURN_VALUE("approved", "rejected"),
+    )
+    def review(self, approved: bool):
+        return "approved" if approved else "rejected"
+
+    class Meta:
+        app_label = "tests"
+
+
 class TestSignalWithDynamicTargets:
     """Test signals with RETURN_VALUE and GET_STATE."""
 
     def test_post_signal_has_resolved_target(self, signal_tracker):
         """post_transition should have the resolved target state."""
-        from django_fsm_rx import RETURN_VALUE
-
-        class DynamicModel(models.Model):
-            state = FSMField(default="draft")
-
-            @transition(
-                field=state,
-                source="draft",
-                target=RETURN_VALUE("approved", "rejected"),
-            )
-            def review(self, approved: bool):
-                return "approved" if approved else "rejected"
-
-            class Meta:
-                app_label = "tests"
-
-        model = DynamicModel()
+        model = SignalDynamicTargetModel()
         model.review(approved=True)
 
         call = signal_tracker.post_calls[0]
@@ -397,23 +409,7 @@ class TestSignalWithDynamicTargets:
 
     def test_post_signal_has_rejected_target(self, signal_tracker):
         """post_transition should have rejected target when returned."""
-        from django_fsm_rx import RETURN_VALUE
-
-        class DynamicModel(models.Model):
-            state = FSMField(default="draft")
-
-            @transition(
-                field=state,
-                source="draft",
-                target=RETURN_VALUE("approved", "rejected"),
-            )
-            def review(self, approved: bool):
-                return "approved" if approved else "rejected"
-
-            class Meta:
-                app_label = "tests"
-
-        model = DynamicModel()
+        model = SignalDynamicTargetModel()
         model.review(approved=False)
 
         call = signal_tracker.post_calls[0]
