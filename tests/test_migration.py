@@ -467,7 +467,7 @@ class TestMigrationAPICompatibility:
         from django_fsm_rx import FSMField
         from django_fsm_rx import transition
 
-        class TestModel(models.Model):
+        class TransitionDecoratorTestModel(models.Model):
             state = FSMField(default="new")
 
             # Old-style transition (should still work)
@@ -486,7 +486,7 @@ class TestMigrationAPICompatibility:
             class Meta:
                 app_label = "testapp"
 
-        obj = TestModel()
+        obj = TransitionDecoratorTestModel()
         assert obj.state == "new"
         obj.finish()
         assert obj.state == "done"
@@ -497,7 +497,7 @@ class TestMigrationAPICompatibility:
         from django_fsm_rx import can_proceed
         from django_fsm_rx import transition
 
-        class TestModel(models.Model):
+        class CanProceedTestModel(models.Model):
             state = FSMField(default="new")
 
             @transition(field=state, source="new", target="done")
@@ -507,7 +507,7 @@ class TestMigrationAPICompatibility:
             class Meta:
                 app_label = "testapp"
 
-        obj = TestModel()
+        obj = CanProceedTestModel()
         assert can_proceed(obj.finish) is True
 
         obj.finish()
@@ -519,7 +519,7 @@ class TestMigrationAPICompatibility:
         from django_fsm_rx import TransitionNotAllowed
         from django_fsm_rx import transition
 
-        class TestModel(models.Model):
+        class TransitionNotAllowedTestModel(models.Model):
             state = FSMField(default="new")
 
             @transition(field=state, source="pending", target="done")
@@ -529,7 +529,7 @@ class TestMigrationAPICompatibility:
             class Meta:
                 app_label = "testapp"
 
-        obj = TestModel()
+        obj = TransitionNotAllowedTestModel()
         with pytest.raises(TransitionNotAllowed):
             obj.finish()
 
@@ -544,7 +544,7 @@ class TestNewFeatures:
         def on_success_callback(instance, source, target, **kwargs):
             callback_called.append((source, target))
 
-        class TestModel(models.Model):
+        class OnSuccessCallbackTestModel(models.Model):
             state = FSMField(default="new")
 
             @transition(field=state, source="new", target="done", on_success=on_success_callback)
@@ -554,7 +554,7 @@ class TestNewFeatures:
             class Meta:
                 app_label = "testapp"
 
-        obj = TestModel()
+        obj = OnSuccessCallbackTestModel()
         obj.finish()
 
         assert len(callback_called) == 1
@@ -563,7 +563,7 @@ class TestNewFeatures:
     def test_prefix_wildcard_source(self):
         """Prefix wildcard source (WRK-*) should work."""
 
-        class TestModel(models.Model):
+        class PrefixWildcardTestModel(models.Model):
             state = FSMField(default="WRK-REP-PRG")
 
             @transition(field=state, source="WRK-*", target="DONE")
@@ -573,13 +573,13 @@ class TestNewFeatures:
             class Meta:
                 app_label = "testapp"
 
-        obj = TestModel()
+        obj = PrefixWildcardTestModel()
         assert obj.state == "WRK-REP-PRG"
         obj.finish()
         assert obj.state == "DONE"
 
         # Test another WRK- state
-        obj2 = TestModel()
+        obj2 = PrefixWildcardTestModel()
         obj2.state = "WRK-INS-PRG"
         obj2.finish()
         assert obj2.state == "DONE"
