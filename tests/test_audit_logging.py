@@ -494,3 +494,182 @@ class TestAuditLogIntegration:
 
             model.cancel()
             assert model.state == "cancelled"
+
+
+# =============================================================================
+# Test FSMTransitionLog Model Fields
+# =============================================================================
+
+
+class TestFSMTransitionLogModel:
+    """Tests for FSMTransitionLog model fields including by and description."""
+
+    def test_model_has_by_field(self):
+        """FSMTransitionLog should have a 'by' field for user tracking."""
+        from django_fsm_rx import FSMTransitionLog
+
+        field = FSMTransitionLog._meta.get_field("by")
+        assert field is not None
+        assert field.null is True
+        assert field.blank is True
+
+    def test_model_has_description_field(self):
+        """FSMTransitionLog should have a 'description' field."""
+        from django_fsm_rx import FSMTransitionLog
+
+        field = FSMTransitionLog._meta.get_field("description")
+        assert field is not None
+        assert field.blank is True
+        assert field.default == ""
+
+    def test_model_has_all_required_fields(self):
+        """FSMTransitionLog should have all required fields."""
+        from django_fsm_rx import FSMTransitionLog
+
+        field_names = {f.name for f in FSMTransitionLog._meta.get_fields()}
+
+        required_fields = {
+            "id",
+            "content_type",
+            "object_id",
+            "transition_name",
+            "source_state",
+            "target_state",
+            "timestamp",
+            "by",
+            "description",
+        }
+
+        for field in required_fields:
+            assert field in field_names, f"Missing field: {field}"
+
+    def test_create_audit_log_with_by_field(self):
+        """create_audit_log should accept 'by' field for user tracking."""
+        with override_fsm_settings(AUDIT_LOG=True):
+            from django_fsm_rx.audit import create_audit_log
+
+            mock_model = MagicMock()
+            # Include 'by' in the model fields
+            mock_field_by = MagicMock()
+            mock_field_by.name = "by"
+            mock_model._meta.get_fields.return_value = [mock_field_by]
+            mock_instance = MagicMock()
+            mock_instance.pk = 123
+            mock_user = MagicMock()
+
+            with patch("django_fsm_rx.audit.get_audit_log_model") as mock_get_model:
+                with patch("django.contrib.contenttypes.models.ContentType.objects.get_for_model") as mock_ct:
+                    mock_get_model.return_value = mock_model
+                    mock_ct.return_value = MagicMock()
+
+                    create_audit_log(
+                        instance=mock_instance,
+                        transition_name="activate",
+                        source_state="new",
+                        target_state="active",
+                        by=mock_user,
+                    )
+
+                    mock_model.objects.create.assert_called_once()
+                    call_kwargs = mock_model.objects.create.call_args[1]
+                    assert call_kwargs["by"] == mock_user
+
+    def test_create_audit_log_with_description_field(self):
+        """create_audit_log should accept 'description' field."""
+        with override_fsm_settings(AUDIT_LOG=True):
+            from django_fsm_rx.audit import create_audit_log
+
+            mock_model = MagicMock()
+            # Include 'description' in the model fields
+            mock_field_desc = MagicMock()
+            mock_field_desc.name = "description"
+            mock_model._meta.get_fields.return_value = [mock_field_desc]
+            mock_instance = MagicMock()
+            mock_instance.pk = 123
+
+            with patch("django_fsm_rx.audit.get_audit_log_model") as mock_get_model:
+                with patch("django.contrib.contenttypes.models.ContentType.objects.get_for_model") as mock_ct:
+                    mock_get_model.return_value = mock_model
+                    mock_ct.return_value = MagicMock()
+
+                    create_audit_log(
+                        instance=mock_instance,
+                        transition_name="activate",
+                        source_state="new",
+                        target_state="active",
+                        description="User activated the workflow",
+                    )
+
+                    mock_model.objects.create.assert_called_once()
+                    call_kwargs = mock_model.objects.create.call_args[1]
+                    assert call_kwargs["description"] == "User activated the workflow"
+
+    def test_create_audit_log_with_by_and_description(self):
+        """create_audit_log should accept both 'by' and 'description' fields."""
+        with override_fsm_settings(AUDIT_LOG=True):
+            from django_fsm_rx.audit import create_audit_log
+
+            mock_model = MagicMock()
+            # Include both fields
+            mock_field_by = MagicMock()
+            mock_field_by.name = "by"
+            mock_field_desc = MagicMock()
+            mock_field_desc.name = "description"
+            mock_model._meta.get_fields.return_value = [mock_field_by, mock_field_desc]
+            mock_instance = MagicMock()
+            mock_instance.pk = 456
+            mock_user = MagicMock()
+
+            with patch("django_fsm_rx.audit.get_audit_log_model") as mock_get_model:
+                with patch("django.contrib.contenttypes.models.ContentType.objects.get_for_model") as mock_ct:
+                    mock_get_model.return_value = mock_model
+                    mock_ct.return_value = MagicMock()
+
+                    create_audit_log(
+                        instance=mock_instance,
+                        transition_name="publish",
+                        source_state="draft",
+                        target_state="published",
+                        by=mock_user,
+                        description="Published by editor",
+                    )
+
+                    mock_model.objects.create.assert_called_once()
+                    call_kwargs = mock_model.objects.create.call_args[1]
+                    assert call_kwargs["by"] == mock_user
+                    assert call_kwargs["description"] == "Published by editor"
+                    assert call_kwargs["transition_name"] == "publish"
+                    assert call_kwargs["source_state"] == "draft"
+                    assert call_kwargs["target_state"] == "published"
+
+    def test_create_audit_log_ignores_unknown_fields(self):
+        """create_audit_log should ignore fields not on the model."""
+        with override_fsm_settings(AUDIT_LOG=True):
+            from django_fsm_rx.audit import create_audit_log
+
+            mock_model = MagicMock()
+            # Model has no extra fields
+            mock_model._meta.get_fields.return_value = []
+            mock_instance = MagicMock()
+            mock_instance.pk = 789
+
+            with patch("django_fsm_rx.audit.get_audit_log_model") as mock_get_model:
+                with patch("django.contrib.contenttypes.models.ContentType.objects.get_for_model") as mock_ct:
+                    mock_get_model.return_value = mock_model
+                    mock_ct.return_value = MagicMock()
+
+                    # Pass extra kwargs that aren't on the model
+                    create_audit_log(
+                        instance=mock_instance,
+                        transition_name="activate",
+                        source_state="new",
+                        target_state="active",
+                        unknown_field="should be ignored",
+                        another_unknown="also ignored",
+                    )
+
+                    mock_model.objects.create.assert_called_once()
+                    call_kwargs = mock_model.objects.create.call_args[1]
+                    # Extra kwargs should not be in the call
+                    assert "unknown_field" not in call_kwargs
+                    assert "another_unknown" not in call_kwargs

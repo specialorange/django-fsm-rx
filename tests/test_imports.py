@@ -93,6 +93,8 @@ class TestFSMTransitionLogImport:
             "source_state",
             "target_state",
             "timestamp",
+            "by",  # User who triggered the transition
+            "description",  # Optional description
         }
 
         for field in expected_fields:

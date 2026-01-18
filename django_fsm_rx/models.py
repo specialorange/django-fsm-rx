@@ -12,6 +12,7 @@ Users who want to use a custom audit log model can set:
 
 from __future__ import annotations
 
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
@@ -25,6 +26,8 @@ class FSMTransitionLog(models.Model):
     - Transition name (method name)
     - Source and target states
     - Timestamp
+    - User who triggered the transition (optional)
+    - Description (optional)
 
     To use this model, ensure 'django_fsm_rx' is in INSTALLED_APPS
     and run migrations.
@@ -53,6 +56,18 @@ class FSMTransitionLog(models.Model):
     timestamp = models.DateTimeField(
         default=timezone.now,
         help_text="When the transition occurred",
+    )
+    by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        help_text="User who triggered the transition",
+    )
+    description = models.TextField(
+        blank=True,
+        default="",
+        help_text="Optional description of the transition",
     )
 
     class Meta:
