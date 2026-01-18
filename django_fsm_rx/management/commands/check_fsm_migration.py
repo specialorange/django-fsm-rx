@@ -67,8 +67,7 @@ class Command(BaseCommand):
                 path = str(settings.BASE_DIR)
             else:
                 raise CommandError(
-                    "Could not determine project root. "
-                    "Please provide --path or ensure BASE_DIR is set in settings."
+                    "Could not determine project root. Please provide --path or ensure BASE_DIR is set in settings."
                 )
 
         path_obj = Path(path)
@@ -94,9 +93,7 @@ class Command(BaseCommand):
     def _output_summary(self, report: MigrationReport) -> None:
         """Output a summary of the migration status."""
         if report.is_fully_migrated:
-            self.stdout.write(
-                self.style.SUCCESS("No deprecated imports found. Your code is ready for django_fsm_rx!")
-            )
+            self.stdout.write(self.style.SUCCESS("No deprecated imports found. Your code is ready for django_fsm_rx!"))
             return
 
         self.stdout.write("")
@@ -125,9 +122,7 @@ class Command(BaseCommand):
 
         self.stdout.write("")
         self.stdout.write(self.style.NOTICE("To fix these imports, update your code as shown above."))
-        self.stdout.write(
-            self.style.NOTICE("See https://github.com/specialorange/django-fsm-rx for migration guide.")
-        )
+        self.stdout.write(self.style.NOTICE("See https://github.com/specialorange/django-fsm-rx for migration guide."))
 
         if report.warnings:
             self.stdout.write("")

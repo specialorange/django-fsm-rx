@@ -19,8 +19,7 @@ from django_fsm_rx.log import fsm_log_by
 from django_fsm_rx.log import fsm_log_description
 
 warnings.warn(
-    "Importing from 'django_fsm_log.decorators' is deprecated. "
-    "Please update your imports to use 'django_fsm_rx.log' instead.",
+    "Importing from 'django_fsm_log.decorators' is deprecated. Please update your imports to use 'django_fsm_rx.log' instead.",
     DeprecationWarning,
     stacklevel=2,
 )

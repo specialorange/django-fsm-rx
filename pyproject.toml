@@ -112,6 +112,9 @@ fixable = ["I"]
 "django_fsm_rx/management/commands/graph_transitions.py" = [
     "C901",  # handle complexity is acceptable
 ]
+"django_fsm_rx/migration.py" = [
+    "C901",  # scan_imports_in_file complexity is acceptable
+]
 
 [tool.ruff.lint.isort]
 force-single-line = true

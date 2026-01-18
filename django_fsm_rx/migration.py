@@ -49,7 +49,6 @@ from __future__ import annotations
 
 import re
 import warnings
-from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
@@ -385,8 +384,7 @@ class MigrationReport:
         if self.warnings:
             lines.append("Warnings:")
             lines.append("-" * 40)
-            for warning in self.warnings:
-                lines.append(f"  - {warning}")
+            lines.extend(f"  - {warning}" for warning in self.warnings)
 
         return "\n".join(lines)
 
@@ -579,10 +577,7 @@ def validate_model_fsm_compatibility(model_class: type[Model]) -> list[str]:
     validation_warnings: list[str] = []
 
     # Check for FSM fields
-    fsm_fields = []
-    for field in model_class._meta.get_fields():
-        if isinstance(field, FSMFieldMixin):
-            fsm_fields.append(field)
+    fsm_fields = [field for field in model_class._meta.get_fields() if isinstance(field, FSMFieldMixin)]
 
     if not fsm_fields:
         validation_warnings.append(f"Model {model_class.__name__} has no FSM fields defined")
@@ -640,8 +635,7 @@ def show_migration_warnings() -> None:
     for old_module, new_module in deprecated_modules.items():
         if old_module in sys.modules:
             warnings.warn(
-                f"Detected import from deprecated module '{old_module}'. "
-                f"Please update to use '{new_module}' instead.",
+                f"Detected import from deprecated module '{old_module}'. Please update to use '{new_module}' instead.",
                 DeprecationWarning,
                 stacklevel=1,
             )

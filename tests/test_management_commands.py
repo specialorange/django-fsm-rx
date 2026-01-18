@@ -109,10 +109,7 @@ class TestCheckFSMMigrationCommand:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a file with multiple deprecated imports
             multi_file = Path(tmpdir) / "admin.py"
-            multi_file.write_text(
-                "from django_fsm import FSMField\n"
-                "from django_fsm_admin.mixins import FSMTransitionMixin\n"
-            )
+            multi_file.write_text("from django_fsm import FSMField\nfrom django_fsm_admin.mixins import FSMTransitionMixin\n")
 
             out = StringIO()
             call_command("check_fsm_migration", path=tmpdir, stdout=out)
