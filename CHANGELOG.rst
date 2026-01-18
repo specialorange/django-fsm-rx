@@ -7,22 +7,12 @@ django-fsm-rx 01.02.03 2026-01-18
 - Test
 
 
-django-fsm-rx 01.02.03 2026-01-18
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+django-fsm-rx 5.1.7 2026-01-18
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-- Test
-
-
-django-fsm-rx 01.02.03 2026-01-18
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Test
-
-
-django-fsm-rx 01.02.03 2026-01-18
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- Test
+- Add automatic data migration from django_fsm_log to django_fsm_rx
+- Add StateLog compatibility alias (points to FSMTransitionLog)
+- Migration is idempotent and preserves old table data
 
 
 django-fsm-rx 5.1.3 2026-01-18
