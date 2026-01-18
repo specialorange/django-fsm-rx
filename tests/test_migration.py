@@ -14,7 +14,6 @@ import sys
 import tempfile
 import warnings
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from django.db import models
@@ -421,7 +420,8 @@ class TestDjangoFSMLogShimBackwardsCompatibility:
 
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            from django_fsm_log.decorators import fsm_log_by, fsm_log_description
+            from django_fsm_log.decorators import fsm_log_by
+            from django_fsm_log.decorators import fsm_log_description
 
             # Should have deprecation warning
             assert any(issubclass(x.category, DeprecationWarning) for x in w)
@@ -464,7 +464,8 @@ class TestMigrationAPICompatibility:
 
     def test_transition_decorator_api_compatibility(self):
         """@transition decorator API should be compatible."""
-        from django_fsm_rx import FSMField, transition
+        from django_fsm_rx import FSMField
+        from django_fsm_rx import transition
 
         class TestModel(models.Model):
             state = FSMField(default="new")
@@ -492,7 +493,9 @@ class TestMigrationAPICompatibility:
 
     def test_can_proceed_api_compatibility(self):
         """can_proceed API should be compatible."""
-        from django_fsm_rx import FSMField, can_proceed, transition
+        from django_fsm_rx import FSMField
+        from django_fsm_rx import can_proceed
+        from django_fsm_rx import transition
 
         class TestModel(models.Model):
             state = FSMField(default="new")
@@ -512,7 +515,9 @@ class TestMigrationAPICompatibility:
 
     def test_transition_not_allowed_api_compatibility(self):
         """TransitionNotAllowed exception should be compatible."""
-        from django_fsm_rx import FSMField, TransitionNotAllowed, transition
+        from django_fsm_rx import FSMField
+        from django_fsm_rx import TransitionNotAllowed
+        from django_fsm_rx import transition
 
         class TestModel(models.Model):
             state = FSMField(default="new")
