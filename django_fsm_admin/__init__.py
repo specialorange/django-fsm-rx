@@ -34,8 +34,11 @@ import warnings
 
 from django_fsm_rx.admin import FSMAdminMixin
 from django_fsm_rx.admin import FSMObjectTransitions
-from django_fsm_rx.admin import FSMTransitionInline
+from django_fsm_rx.admin import FSMTransitionLogInline
 from django_fsm_rx.admin import FSMTransitionMixin
+
+# Backwards compatibility alias
+FSMTransitionInline = FSMTransitionLogInline
 
 warnings.warn(
     "Importing from 'django_fsm_admin' is deprecated. "
@@ -50,4 +53,5 @@ __all__ = [
     "FSMAdminMixin",
     "FSMObjectTransitions",
     "FSMTransitionInline",
+    "FSMTransitionLogInline",
 ]

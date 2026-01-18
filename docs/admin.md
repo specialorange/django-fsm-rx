@@ -17,6 +17,46 @@ class OrderAdmin(FSMAdminMixin, admin.ModelAdmin):
 
 This renders transition buttons below the form for each available transition.
 
+## Transition History Inline
+
+To display transition history directly in the admin change form, use `FSMTransitionLogInline`:
+
+```python
+from django.contrib import admin
+from django_fsm_rx.admin import FSMAdminMixin, FSMTransitionLogInline
+from myapp.models import Order
+
+@admin.register(Order)
+class OrderAdmin(FSMAdminMixin, admin.ModelAdmin):
+    list_display = ['id', 'customer', 'state']
+    fsm_fields = ['state']
+    inlines = [FSMTransitionLogInline]
+```
+
+This displays a read-only table of all state transitions for the object, showing:
+- **Timestamp** - When the transition occurred
+- **Transition** - The transition method name
+- **Source State** - State before transition
+- **Target State** - State after transition
+- **By** - User who triggered the transition (if available)
+- **Description** - Optional description
+
+The inline is:
+- **Read-only** - Log entries cannot be edited or deleted
+- **Ordered by most recent first** - Latest transitions appear at the top
+- **Automatic** - Works with any model that has FSM fields (uses GenericForeignKey)
+
+### Requirements
+
+The inline requires audit logging to be enabled (default). If you've disabled audit logging, the inline will be empty:
+
+```python
+# settings.py
+DJANGO_FSM_RX = {
+    'AUDIT_LOG': True,  # Required for FSMTransitionLogInline to show data
+}
+```
+
 ## Migration from django-fsm-admin
 
 If you're migrating from [django-fsm-admin](https://github.com/gadventures/django-fsm-admin) or [django-fsm-2-admin](https://github.com/coral-li/django-fsm-2-admin), your existing code will work with the compatibility shim:

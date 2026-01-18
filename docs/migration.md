@@ -176,13 +176,15 @@ pip install django-fsm-rx
 # settings.py
 INSTALLED_APPS = [
     ...,
-    'django_fsm_rx',  # Replaces both django_fsm and django_fsm_log
-    # 'django_fsm_log',  # Remove this - no longer needed
+    'django_fsm_rx',  # This is all you need
+    # 'django_fsm_log',  # Remove - no longer needed
     ...,
 ]
 ```
 
-**Important:** You do NOT need to add `django_fsm_log` to INSTALLED_APPS. The compatibility shim works without it.
+```{important}
+You do **NOT** need to add `django_fsm_log` to INSTALLED_APPS. The compatibility shim is built into django-fsm-rx - just add `django_fsm_rx` and your existing `from django_fsm_log.models import StateLog` imports will continue to work automatically.
+```
 
 ### Step 3: Run migrations
 

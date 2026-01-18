@@ -13,6 +13,7 @@ Users who want to use a custom audit log model can set:
 from __future__ import annotations
 
 from django.conf import settings
+from django.contrib.contenttypes.fields import GenericForeignKey
 from django.db import models
 from django.utils import timezone
 
@@ -41,6 +42,7 @@ class FSMTransitionLog(models.Model):
     object_id = models.TextField(
         help_text="Primary key of the transitioned object",
     )
+    content_object = GenericForeignKey("content_type", "object_id")
     transition_name = models.CharField(
         max_length=255,
         help_text="Name of the transition method",

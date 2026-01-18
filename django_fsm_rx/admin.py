@@ -22,10 +22,10 @@ from dataclasses import field
 from typing import TYPE_CHECKING
 from typing import Any
 
-from django.contrib import admin
 from django.contrib import messages
 from django.contrib.admin.options import BaseModelAdmin
 from django.contrib.admin.templatetags.admin_urls import add_preserved_filters
+from django.contrib.contenttypes.admin import GenericTabularInline
 from django.core.exceptions import FieldDoesNotExist
 from django.http import HttpRequest
 from django.http import HttpResponse
@@ -51,6 +51,7 @@ from django_fsm_rx.widgets import FSMCascadeWidget
 __all__ = [
     "FSMAdminMixin",
     "FSMTransitionMixin",  # Backwards compatibility alias for django-fsm-admin
+    "FSMTransitionLogInline",
     "FSMCascadeWidget",
     "FSMObjectTransitions",
 ]
@@ -633,29 +634,39 @@ class FSMAdminMixin(BaseModelAdmin):
         return render(request, self.fsm_transition_form_template, context)
 
 
-class FSMTransitionInline(admin.TabularInline):
+class FSMTransitionLogInline(GenericTabularInline):
     """
-    Inline admin for displaying FSM transition history.
+    Inline admin for displaying FSM transition history using FSMTransitionLog.
 
-    Use this with django-fsm-log's StateLog model to show
-    transition history in the admin change form.
+    This inline uses Django's GenericTabularInline to display transition logs
+    for any model, using the content_type/object_id generic foreign key pattern.
 
     Example:
-        >>> from django_fsm_log.models import StateLog
+        >>> from django.contrib import admin
+        >>> from django_fsm_rx.admin import FSMAdminMixin, FSMTransitionLogInline
+        >>> from myapp.models import BlogPost
         >>>
-        >>> class StateLogInline(FSMTransitionInline):
-        ...     model = StateLog
-        ...
         >>> @admin.register(BlogPost)
         >>> class BlogPostAdmin(FSMAdminMixin, admin.ModelAdmin):
         ...     fsm_fields = ['state']
-        ...     inlines = [StateLogInline]
+        ...     inlines = [FSMTransitionLogInline]
+
+    The inline will automatically show all transition logs for the object,
+    ordered by most recent first.
     """
 
+    from django_fsm_rx.models import FSMTransitionLog
+
+    model = FSMTransitionLog
+    ct_field = "content_type"
+    ct_fk_field = "object_id"
     extra = 0
     can_delete = False
-    readonly_fields = ["timestamp", "source_state", "state", "transition", "by"]
-    fields = readonly_fields
+    readonly_fields = ["timestamp", "transition_name", "source_state", "target_state", "by", "description"]
+    fields = ["timestamp", "transition_name", "source_state", "target_state", "by", "description"]
+    ordering = ["-timestamp"]
+    verbose_name = _("Transition Log")
+    verbose_name_plural = _("Transition History")
 
     def has_add_permission(self, request: HttpRequest, obj: Any = None) -> bool:
         """Disable adding new log entries manually."""

@@ -386,11 +386,13 @@ pip install django-fsm-rx
 # settings.py
 INSTALLED_APPS = [
     ...,
-    'django_fsm_rx',  # Replaces both django_fsm and django_fsm_log
-    # 'django_fsm_log',  # Remove this - no longer needed
+    'django_fsm_rx',  # This is all you need
+    # 'django_fsm_log',  # Remove - no longer needed
     ...,
 ]
 ```
+
+**Note:** You do NOT need to add `django_fsm_log` to INSTALLED_APPS. The compatibility shim is built into django-fsm-rx - just add `django_fsm_rx` and your existing `from django_fsm_log.models import StateLog` imports will continue to work.
 
 #### Step 3: Update imports
 
@@ -520,7 +522,7 @@ For complete documentation, visit **[django-fsm-rx.readthedocs.io](https://djang
 - **[Signals](https://django-fsm-rx.readthedocs.io/en/latest/usage.html#signals)** - `pre_transition` and `post_transition`
 - **[Optimistic Locking](https://django-fsm-rx.readthedocs.io/en/latest/usage.html#optimistic-locking)** - `ConcurrentTransitionMixin`
 - **[Field Types](https://django-fsm-rx.readthedocs.io/en/latest/usage.html#integer-states)** - `FSMField`, `FSMIntegerField`, `FSMKeyField`
-- **[Admin Integration](https://django-fsm-rx.readthedocs.io/en/latest/admin.html)** - `FSMCascadeWidget` for cascading dropdowns
+- **[Admin Integration](https://django-fsm-rx.readthedocs.io/en/latest/admin.html)** - `FSMAdminMixin`, `FSMTransitionLogInline`, `FSMCascadeWidget`
 - **[Contributing](https://django-fsm-rx.readthedocs.io/en/latest/contributing.html)** - Development setup, testing, code style
 
 ## Contributing

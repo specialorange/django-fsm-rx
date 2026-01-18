@@ -22,6 +22,7 @@ from django.test import RequestFactory
 from django.test import override_settings
 
 from django_fsm_rx.admin import FSMAdminMixin
+from django_fsm_rx.admin import FSMTransitionLogInline
 from tests.testapp.models import AdminArticle
 from tests.testapp.models import AdminBlogPost
 
@@ -514,3 +515,152 @@ class TestFSMAdminChangeView:
             call_kwargs = mock_change_view.call_args.kwargs
             extra_context = call_kwargs.get("extra_context", {})
             assert "fsm_object_transitions" in extra_context
+
+
+@pytest.mark.django_db
+class TestFSMTransitionLogInline:
+    """Test FSMTransitionLogInline for displaying transition history."""
+
+    def test_inline_model_is_fsm_transition_log(self):
+        """Test inline uses FSMTransitionLog model."""
+        from django_fsm_rx.models import FSMTransitionLog
+
+        assert FSMTransitionLogInline.model is FSMTransitionLog
+
+    def test_inline_uses_generic_foreign_key_fields(self):
+        """Test inline is configured for GenericForeignKey."""
+        assert FSMTransitionLogInline.ct_field == "content_type"
+        assert FSMTransitionLogInline.ct_fk_field == "object_id"
+
+    def test_inline_is_readonly(self):
+        """Test inline fields are readonly."""
+        expected_fields = ["timestamp", "transition_name", "source_state", "target_state", "by", "description"]
+        assert list(FSMTransitionLogInline.readonly_fields) == expected_fields
+        assert list(FSMTransitionLogInline.fields) == expected_fields
+
+    def test_inline_has_no_extra_forms(self):
+        """Test inline doesn't show extra empty forms."""
+        assert FSMTransitionLogInline.extra == 0
+
+    def test_inline_cannot_delete(self):
+        """Test inline entries cannot be deleted."""
+        assert FSMTransitionLogInline.can_delete is False
+
+    def test_inline_has_no_add_permission(self, admin_request):
+        """Test inline doesn't allow adding new entries."""
+        inline = FSMTransitionLogInline(AdminArticle, AdminSite())
+        assert inline.has_add_permission(admin_request) is False
+
+    def test_inline_has_no_change_permission(self, admin_request):
+        """Test inline doesn't allow changing entries."""
+        inline = FSMTransitionLogInline(AdminArticle, AdminSite())
+        assert inline.has_change_permission(admin_request) is False
+
+    def test_inline_ordering(self):
+        """Test inline is ordered by most recent first."""
+        assert FSMTransitionLogInline.ordering == ["-timestamp"]
+
+    def test_inline_verbose_names(self):
+        """Test inline has proper verbose names."""
+        assert str(FSMTransitionLogInline.verbose_name) == "Transition Log"
+        assert str(FSMTransitionLogInline.verbose_name_plural) == "Transition History"
+
+    def test_inline_displays_transition_logs(self, admin_site):
+        """Test inline displays transition logs for an object."""
+        from django.contrib.contenttypes.models import ContentType
+
+        from django_fsm_rx.models import FSMTransitionLog
+
+        # Create an article and some transition logs
+        article = AdminArticle.objects.create(title="Test Article", state="draft")
+        content_type = ContentType.objects.get_for_model(AdminArticle)
+
+        # Create transition logs
+        FSMTransitionLog.objects.create(
+            content_type=content_type,
+            object_id=str(article.pk),
+            transition_name="submit",
+            source_state="draft",
+            target_state="pending",
+        )
+        FSMTransitionLog.objects.create(
+            content_type=content_type,
+            object_id=str(article.pk),
+            transition_name="publish",
+            source_state="pending",
+            target_state="published",
+        )
+
+        # Query logs for this article
+        logs = FSMTransitionLog.objects.filter(content_type=content_type, object_id=str(article.pk))
+
+        assert logs.count() == 2
+        assert logs.first().transition_name == "publish"  # Most recent first due to ordering
+
+    def test_inline_with_admin_class(self, admin_site, admin_request):
+        """Test inline can be added to an admin class."""
+
+        class ArticleAdminWithLogs(FSMAdminMixin, admin.ModelAdmin):
+            fsm_fields = ["state"]
+            inlines = [FSMTransitionLogInline]
+
+        article_admin = ArticleAdminWithLogs(AdminArticle, admin_site)
+        assert FSMTransitionLogInline in article_admin.inlines
+
+    def test_fsm_transition_log_has_generic_foreign_key(self):
+        """Test FSMTransitionLog model has GenericForeignKey for inline to work."""
+        from django.contrib.contenttypes.fields import GenericForeignKey
+
+        from django_fsm_rx.models import FSMTransitionLog
+
+        # Check that content_object is a GenericForeignKey
+        content_object = FSMTransitionLog._meta.private_fields[0]
+        assert isinstance(content_object, GenericForeignKey)
+        assert content_object.name == "content_object"
+        assert content_object.ct_field == "content_type"
+        assert content_object.fk_field == "object_id"
+
+    def test_content_object_returns_related_instance(self):
+        """Test content_object GenericForeignKey returns the related object."""
+        from django.contrib.contenttypes.models import ContentType
+
+        from django_fsm_rx.models import FSMTransitionLog
+
+        article = AdminArticle.objects.create(title="Test Article", state="draft")
+        content_type = ContentType.objects.get_for_model(AdminArticle)
+
+        log = FSMTransitionLog.objects.create(
+            content_type=content_type,
+            object_id=str(article.pk),
+            transition_name="submit",
+            source_state="draft",
+            target_state="pending",
+        )
+
+        # content_object should return the article
+        assert log.content_object == article
+
+
+@pytest.mark.django_db
+class TestFSMTransitionLogInlineBackwardsCompatibility:
+    """Test backwards compatibility aliases for FSMTransitionLogInline."""
+
+    def test_fsm_transition_inline_alias_in_django_fsm_admin(self):
+        """Test FSMTransitionInline alias exists in django_fsm_admin shim."""
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            from django_fsm_admin import FSMTransitionInline
+
+        assert FSMTransitionInline is FSMTransitionLogInline
+
+    def test_fsm_transition_log_inline_in_django_fsm_admin(self):
+        """Test FSMTransitionLogInline is exported from django_fsm_admin shim."""
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            from django_fsm_admin import FSMTransitionLogInline as ShimInline
+
+        assert ShimInline is FSMTransitionLogInline
