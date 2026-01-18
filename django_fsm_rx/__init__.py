@@ -50,6 +50,7 @@ from django_fsm_rx.signals import pre_transition
 def __getattr__(name: str) -> Any:
     """Lazy import for FSMTransitionLog to avoid AppRegistryNotReady errors."""
     if name == "FSMTransitionLog":
+        # Only import when explicitly requested and Django apps are ready
         from django_fsm_rx.models import FSMTransitionLog
 
         return FSMTransitionLog
@@ -80,8 +81,7 @@ __all__ = [
     "FSMMeta",
     # Settings
     "fsm_rx_settings",
-    # Audit logging
-    "FSMTransitionLog",
+    # Audit logging functions (FSMTransitionLog excluded - import explicitly after django.setup())
     "create_audit_log",
     "get_audit_log_model",
 ]
